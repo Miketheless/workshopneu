@@ -1,25 +1,30 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Admin</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin – Golfclub Metzenhof</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 <main class="container">
-  <h1>Admin – Buchungen</h1>
+  <h1>Admin – Buchungsübersicht</h1>
 
   <section class="card">
     <label>Admin Key
-      <input id="admin_key" type="password" placeholder="Key eingeben"/>
+      <input id="admin_key" type="password" placeholder="Schlüssel eingeben"/>
     </label>
-    <button id="load">Laden</button>
-    <button id="export">CSV Export</button>
+    <button id="load">Buchungen laden</button>
+    <button id="export">CSV exportieren</button>
     <p id="msg"></p>
   </section>
 
   <section id="list" class="card"></section>
 </main>
+
+<footer class="footer">
+  <p><a href="index.html">← Zurück zur Buchungsseite</a></p>
+</footer>
 
 <script src="admin.js"></script>
 </body>

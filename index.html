@@ -3,20 +3,22 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Platzreife buchen</title>
+  <title>Platzreife buchen – Golfclub Metzenhof</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 <header class="hero">
+  <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="hero-logo"/>
   <h1>Platzreife-Kurs buchen</h1>
-  <p>09:00–15:00 • max. 8 Teilnehmer pro Termin</p>
+  <p>09:00–15:00 Uhr • max. 8 Teilnehmer pro Termin</p>
+  <p class="hero-motto">„mitanaund genießen"</p>
 </header>
 
 <main class="container">
   <section class="card">
     <h2>Freie Termine</h2>
     <div class="row">
-      <label>Monat
+      <label>Monat auswählen
         <input id="month" type="month"/>
       </label>
     </div>
@@ -26,12 +28,12 @@
   <section class="card">
     <h2>Jetzt buchen</h2>
     <form id="form">
-      <label>Termin
+      <label>Gewünschter Termin
         <select id="slot_id" required></select>
       </label>
 
-      <label>Kontakt E-Mail
-        <input id="contact_email" type="email" required/>
+      <label>Ihre E-Mail-Adresse
+        <input id="contact_email" type="email" placeholder="beispiel@email.de" required/>
       </label>
 
       <label>Anzahl Teilnehmer (1–8)
@@ -43,11 +45,11 @@
 
       <label class="chk">
         <input id="agb" type="checkbox" required/>
-        Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.
+        <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.</span>
       </label>
       <label class="chk">
         <input id="privacy" type="checkbox" required/>
-        Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen.
+        <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen.</span>
       </label>
 
       <button type="submit">Verbindlich buchen</button>
@@ -55,6 +57,10 @@
     </form>
   </section>
 </main>
+
+<footer class="footer">
+  <p>Golfclub Metzenhof · <a href="privacy.html">Datenschutz</a> · <a href="agb.html">AGB</a></p>
+</footer>
 
 <script src="app.js"></script>
 </body>
