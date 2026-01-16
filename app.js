@@ -32,6 +32,8 @@ const MAX_CAPACITY = 8;
 // ══════════════════════════════════════════════════════════════
 
 const elements = {
+  monthFilter: document.getElementById("month-filter"),
+  slotsContainer: document.getElementById("slots-container"),
   slotSelect: document.getElementById("slot-select"),
   bookingForm: document.getElementById("booking-form"),
   contactEmail: document.getElementById("contact-email"),
@@ -54,6 +56,7 @@ const elements = {
 // ══════════════════════════════════════════════════════════════
 
 let allSlots = [];
+let selectedMonth = "";
 
 // ══════════════════════════════════════════════════════════════
 // HILFSFUNKTIONEN
@@ -63,6 +66,8 @@ let allSlots = [];
  * Wochentag-Namen
  */
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+const MONTHS = ["Jänner", "Februar", "März", "April", "Mai", "Juni", 
+                "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 /**
  * Datum formatieren: "2026-02-25" → "Mittwoch, 25.02.2026"
@@ -80,6 +85,21 @@ function formatDate(dateStr) {
 function formatDateShort(dateStr) {
   const [year, month, day] = dateStr.split("-");
   return `${day}.${month}.${year}`;
+}
+
+/**
+ * Monat extrahieren: "2026-02-25" → "2026-02"
+ */
+function getMonth(dateStr) {
+  return dateStr.substring(0, 7);
+}
+
+/**
+ * Monat formatieren: "2026-02" → "Februar 2026"
+ */
+function formatMonth(monthStr) {
+  const [year, month] = monthStr.split("-");
+  return `${MONTHS[parseInt(month) - 1]} ${year}`;
 }
 
 /**
@@ -153,6 +173,71 @@ async function submitBooking(payload) {
 // ══════════════════════════════════════════════════════════════
 // RENDER FUNKTIONEN
 // ══════════════════════════════════════════════════════════════
+
+/**
+ * Monatsfilter aufbauen
+ */
+function renderMonthFilter() {
+  // Alle einzigartigen Monate sammeln
+  const months = [...new Set(allSlots.map(s => getMonth(s.date)))].sort();
+  
+  elements.monthFilter.innerHTML = '<option value="">Alle Termine anzeigen</option>';
+  months.forEach(month => {
+    const option = document.createElement("option");
+    option.value = month;
+    option.textContent = formatMonth(month);
+    elements.monthFilter.appendChild(option);
+  });
+}
+
+/**
+ * Slots-Übersicht als Tabelle rendern
+ */
+function renderSlots() {
+  // Nach Monat filtern
+  const filteredSlots = selectedMonth 
+    ? allSlots.filter(s => getMonth(s.date) === selectedMonth)
+    : allSlots;
+  
+  // Nur zukünftige Termine
+  const futureSlots = filteredSlots.filter(s => isFuture(s.date));
+  
+  // Tabellen-Body Element finden
+  const tbody = document.getElementById("slots-tbody");
+  if (!tbody) {
+    console.error("slots-tbody nicht gefunden");
+    return;
+  }
+  
+  if (futureSlots.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="no-slots">Keine Termine verfügbar.</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = futureSlots.map(slot => {
+    const free = slot.capacity - slot.booked;
+    let availClass = "available";
+    let availText = `${free} Plätze`;
+    
+    if (free === 0) {
+      availClass = "full";
+      availText = "Ausgebucht";
+    } else if (free <= 2) {
+      availClass = "few";
+      availText = `${free} ${free === 1 ? "Platz" : "Plätze"}`;
+    }
+    
+    return `
+      <tr>
+        <td class="slot-date-cell">${formatDate(slot.date)}</td>
+        <td class="slot-time-cell">${slot.start}–${slot.end} Uhr</td>
+        <td class="slot-free-cell">
+          <span class="slot-free-badge ${availClass}">${availText}</span>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
 
 /**
  * Slot-Dropdown für Buchung rendern
@@ -256,6 +341,14 @@ function showSuccess(bookingId, date, count, email) {
 // ══════════════════════════════════════════════════════════════
 // EVENT HANDLER
 // ══════════════════════════════════════════════════════════════
+
+/**
+ * Monatsfilter ändern
+ */
+elements.monthFilter.addEventListener("change", (e) => {
+  selectedMonth = e.target.value;
+  renderSlots();
+});
 
 /**
  * Slot-Auswahl ändern → Max Teilnehmer anpassen
@@ -396,6 +489,8 @@ async function init() {
   allSlots = await fetchSlots();
   
   // UI rendern
+  renderMonthFilter();
+  renderSlots();
   renderSlotSelect();
   renderParticipants(1);
 }
