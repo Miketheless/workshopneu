@@ -10,12 +10,6 @@
 
 <header class="hero">
   <div class="hero-inner">
-    <div class="hero-logos">
-      <a href="https://www.metzenhof.at" target="_blank" rel="noopener">
-        <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="hero-logo">
-      </a>
-    </div>
-    <p class="hero-motto tagline">mitanaund genießen</p>
     <h1>Buchung stornieren</h1>
   </div>
 </header>
@@ -76,6 +70,11 @@
 </main>
 
 <footer class="footer-simple">
+  <div class="footer-logo" style="margin-bottom: 1.5rem;">
+    <a href="https://www.metzenhof.at" target="_blank" rel="noopener">
+      <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="logo-white" style="height: 50px;">
+    </a>
+  </div>
   <p>Golfclub Metzenhof · Dörfling 2, 4484 Kronstorf</p>
   <div class="footer-links">
     <a href="privacy.html">Datenschutz</a>
@@ -89,7 +88,7 @@
 /**
  * Stornierung verarbeiten
  */
-const API_BASE = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+const API_BASE = "https://script.google.com/macros/s/AKfycbzeT3syS3BN25_HR9QJ-qzHETYSTyz_Z61KxvIa8K0nr5b8XzIGr6A-FwyERn_DU3Dl_A/exec";
 
 // DOM Elemente
 const loadingSection = document.getElementById("loading-section");
