@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<!-- Platzreife Stornierung – Golfclub Metzenhof – v2.0 (16.01.2026) -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stornierung – Golfclub Metzenhof</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <h1>Buchung stornieren</h1>
+  </div>
+</header>
+
+<main class="container container-narrow">
+  
+  <!-- LADEANZEIGE -->
+  <section id="loading-section" class="card cancel-card">
+    <div class="cancel-icon pending">⏳</div>
+    <h2>Stornierung wird verarbeitet...</h2>
+    <p class="text-muted">Bitte warten Sie einen Moment.</p>
+  </section>
+  
+  <!-- ERFOLG -->
+  <section id="success-section" class="card cancel-card hidden">
+    <div class="cancel-icon" style="border-color: var(--color-primary); color: var(--color-primary);">✓</div>
+    <h2>Buchung erfolgreich storniert</h2>
+    
+    <div class="booking-details">
+      <div class="detail-row">
+        <span class="detail-label">Buchungs-ID</span>
+        <span class="detail-value" id="cancelled-booking-id">–</span>
+      </div>
+    </div>
+    
+    <div class="success-info">
+      <p>Sie erhalten eine Bestätigung per E-Mail.</p>
+      <p>Bei Fragen erreichen Sie uns unter:</p>
+      <p><strong>info@metzenhof.at</strong> · <strong>+43 7225 7389</strong></p>
+    </div>
+    
+    <a href="index.html" class="btn btn-secondary">Neue Buchung vornehmen</a>
+  </section>
+  
+  <!-- FEHLER -->
+  <section id="error-section" class="card cancel-card hidden">
+    <div class="cancel-icon">✗</div>
+    <h2>Stornierung fehlgeschlagen</h2>
+    <p id="error-message" class="text-muted">Ein Fehler ist aufgetreten.</p>
+    
+    <div class="success-info">
+      <p>Bitte kontaktieren Sie uns direkt:</p>
+      <p><strong>info@metzenhof.at</strong> · <strong>+43 7225 7389</strong></p>
+    </div>
+    
+    <a href="index.html" class="btn btn-secondary">Zur Startseite</a>
+  </section>
+  
+  <!-- BEREITS STORNIERT -->
+  <section id="already-section" class="card cancel-card hidden">
+    <div class="cancel-icon" style="border-color: var(--color-text-muted); color: var(--color-text-muted);">ℹ</div>
+    <h2>Bereits storniert</h2>
+    <p class="text-muted">Diese Buchung wurde bereits storniert.</p>
+    
+    <a href="index.html" class="btn btn-secondary">Neue Buchung vornehmen</a>
+  </section>
+  
+</main>
+
+<footer class="footer-simple">
+  <div class="footer-logo" style="margin-bottom: 1.5rem;">
+    <a href="https://www.metzenhof.at" target="_blank" rel="noopener">
+      <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="logo-white" style="height: 50px;">
+    </a>
+  </div>
+  <p>Golfclub Metzenhof · Dörfling 2, 4484 Kronstorf</p>
+  <div class="footer-links">
+    <a href="privacy.html">Datenschutz</a>
+    <a href="agb.html">AGB</a>
+    <a href="https://www.metzenhof.at" target="_blank">metzenhof.at</a>
+  </div>
+  <p style="margin-top: 1.5rem; opacity: 0.6;">© 2026 Golfclub Metzenhof</p>
+</footer>
+
+<script>
+/**
+ * Stornierung verarbeiten
+ */
+const API_BASE = "https://script.google.com/macros/s/AKfycbzeT3syS3BN25_HR9QJ-qzHETYSTyz_Z61KxvIa8K0nr5b8XzIGr6A-FwyERn_DU3Dl_A/exec";
+
+// DOM Elemente
+const loadingSection = document.getElementById("loading-section");
+const successSection = document.getElementById("success-section");
+const errorSection = document.getElementById("error-section");
+const alreadySection = document.getElementById("already-section");
+const cancelledBookingId = document.getElementById("cancelled-booking-id");
+const errorMessage = document.getElementById("error-message");
+
+// Token aus URL holen
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+
+/**
+ * Alle Sektionen verstecken
+ */
+function hideAll() {
+  loadingSection.classList.add("hidden");
+  successSection.classList.add("hidden");
+  errorSection.classList.add("hidden");
+  alreadySection.classList.add("hidden");
+}
+
+/**
+ * Stornierung durchführen
+ */
+async function processCancel() {
+  if (!token) {
+    hideAll();
+    errorSection.classList.remove("hidden");
+    errorMessage.textContent = "Kein gültiger Stornierungslink.";
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}?action=cancel&token=${encodeURIComponent(token)}`);
+    const result = await response.json();
+    
+    hideAll();
+    
+    if (result.ok) {
+      successSection.classList.remove("hidden");
+      cancelledBookingId.textContent = result.booking_id || "–";
+    } else if (result.already_cancelled) {
+      alreadySection.classList.remove("hidden");
+    } else {
+      errorSection.classList.remove("hidden");
+      errorMessage.textContent = result.message || "Stornierung fehlgeschlagen.";
+    }
+  } catch (error) {
+    console.error("Stornierungsfehler:", error);
+    hideAll();
+    errorSection.classList.remove("hidden");
+    errorMessage.textContent = "Verbindungsfehler. Bitte versuchen Sie es später erneut.";
+  }
+}
+
+// Stornierung starten
+processCancel();
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<!-- Platzreife Buchungsseite – Golfclub Metzenhof – v2.0 (16.01.2026) -->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Platzreife-Kurs buchen beim Golfclub Metzenhof. Lernen Sie Golf in entspannter Atmosphäre.">
+  <title>Platzreife buchen – Golfclub Metzenhof</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HEADER (Grün mit Eye-Catcher)
+     ═══════════════════════════════════════════════════════════ -->
+<header class="hero hero-green">
+  <div class="hero-inner">
+    <div class="hero-logos">
+      <img src="Gemma Golfn Logo Quer 1C_WEISS.svg" alt="Gemma Golfn" class="hero-logo hero-logo-gemma">
+    </div>
+    
+    <!-- Eye-Catcher: Großer Titel -->
+    <div class="hero-eyecatcher">
+      <span class="eyecatcher-main">PLATZREIFEKURSE</span>
+      <span class="eyecatcher-year">2026</span>
+    </div>
+    
+    <!-- Preis mit Animation -->
+    <div class="hero-price-badge">
+      <span class="price-amount">€ 99,-</span>
+      <span class="price-info">inkl. Jahresmitgliedschaft</span>
+    </div>
+    
+    <h1 class="sr-only">Platzreife buchen – Golfclub Metzenhof</h1>
+    
+    <p class="hero-description">
+      Der Platzerlaubnis-Kurs: Dein Einstieg in die Welt des Golfsports! In diesem Kurs lernst du die Grundschläge, die wichtigsten Golfregeln und das richtige Verhalten auf dem Platz. Auch das Spielen auf dem Platz ist ein zentraler Bestandteil des Kurses. Nach erfolgreichem Abschluss bist du berechtigt, unsere wunderschöne 18-Loch-Anlage zu nutzen und kannst an unseren Workshops teilnehmen, um deine persönliche Turnierlizenz zu erwerben. Mach den ersten Schritt – und entdecke deine Leidenschaft für Golf!
+    </p>
+    
+    <p class="hero-subtitle">09:00–15:00 Uhr · max. 8 Teilnehmer pro Termin</p>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════ -->
+<main class="container">
+    
+  
+  <!-- TERMINE ÜBERSICHT ALS TABELLE -->
+  <section class="card">
+    <div class="card-header">
+      <h2>Freie Termine 2026</h2>
+    </div>
+    
+    <div class="filter-row">
+      <label for="month-filter">Nach Monat filtern</label>
+      <select id="month-filter">
+        <option value="">Alle Termine anzeigen</option>
+      </select>
+    </div>
+    
+    <div id="slots-container" class="slots-grid">
+      <div class="slots-loading">Termine werden geladen...</div>
+    </div>
+  </section>
+  
+  <!-- BUCHUNGSFORMULAR -->
+  <section class="card">
+    <div class="card-header">
+      <h2>Jetzt buchen</h2>
+    </div>
+    
+    <form id="booking-form">
+      <!-- Terminauswahl -->
+      <label for="slot-select">
+        Gewünschter Termin
+        <select id="slot-select" required>
+          <option value="">Bitte wählen...</option>
+        </select>
+      </label>
+      
+      
+      <!-- Teilnehmeranzahl -->
+      <label for="participant-count">
+        Anzahl Teilnehmer (1–8)
+        <input type="number" id="participant-count" min="1" max="8" value="1" required>
+      </label>
+      
+      <!-- Teilnehmerdaten (inkl. Kontaktdaten) -->
+      <h3>Teilnehmerdaten</h3>
+      <div id="participants-container"></div>
+      
+      <!-- Versteckte Kontaktfelder (werden aus erstem Teilnehmer befüllt) -->
+      <input type="hidden" id="contact-email">
+      <input type="hidden" id="contact-phone">
+      
+      <!-- Checkboxen -->
+      <div class="checkbox-group">
+        <label class="checkbox-item">
+          <input type="checkbox" id="agb-checkbox" class="checkbox-square" required>
+          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="privacy-checkbox" class="checkbox-square" required>
+          <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen und stimme zu.</span>
+        </label>
+      </div>
+      
+      <!-- Submit -->
+      <button type="submit" id="submit-btn">Verbindlich buchen</button>
+      
+      <!-- Nachrichten -->
+      <div id="form-message" class="message"></div>
+    </form>
+  </section>
+  
+  <!-- ERFOLGSANZEIGE (initial versteckt) -->
+  <section id="success-section" class="card success-card hidden">
+    <div class="success-icon">✓</div>
+    <h2>Buchung erfolgreich!</h2>
+    
+    <div class="booking-details">
+      <div class="detail-row">
+        <span class="detail-label">Buchungs-ID</span>
+        <span class="detail-value" id="success-booking-id">–</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Termin</span>
+        <span class="detail-value" id="success-date">–</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Teilnehmer</span>
+        <span class="detail-value" id="success-count">–</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Bestätigung an</span>
+        <span class="detail-value" id="success-email">–</span>
+      </div>
+    </div>
+    
+    <div class="success-info">
+      <p>Eine Bestätigungs-E-Mail mit allen Details wurde an Sie gesendet.</p>
+      <p>Bei Fragen erreichen Sie uns unter:</p>
+      <p><strong>info@metzenhof.at</strong> · <strong>+43 7225 7389</strong></p>
+    </div>
+    
+    <button type="button" onclick="location.reload()" class="btn-secondary">Weitere Buchung</button>
+  </section>
+  
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer-logo">
+    <a href="https://www.metzenhof.at" target="_blank" rel="noopener">
+      <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="logo-white">
+    </a>
+  </div>
+  
+  <div class="footer-inner">
+    <div class="footer-section">
+      <h5>Kontakt</h5>
+      <p>Golfplatz Kronstorf-Steyr BetriebsgesmbH</p>
+      <p>Dörfling 2, 4484 Kronstorf</p>
+      <p style="margin-top: 1rem;">
+        <a href="mailto:info@metzenhof.at">info@metzenhof.at</a>
+      </p>
+      <p><a href="tel:+4372257389">+43 7225 7389</a></p>
+    </div>
+    
+    <div class="footer-section">
+      <h5>Informationen</h5>
+      <a href="https://www.metzenhof.at/unser-golfplatz/" target="_blank">Unser Golfplatz</a>
+      <a href="https://www.metzenhof.at/golf/gemma-golfn/" target="_blank">Gemma Golfn</a>
+      <a href="agb.html">AGB</a>
+      <a href="privacy.html">Datenschutz</a>
+    </div>
+    
+    <div class="footer-section">
+      <h5>Folgen Sie uns</h5>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/Metzenhof" target="_blank" rel="noopener" aria-label="Facebook">f</a>
+        <a href="https://www.instagram.com/metzenhof_golfplatz/" target="_blank" rel="noopener" aria-label="Instagram">◯</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="footer-bottom">
+    <p>© 2026 Golfclub Metzenhof</p>
+    <a href="https://www.metzenhof.at/impressum/" target="_blank">Impressum</a>
+    <a href="privacy.html">Datenschutz</a>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
