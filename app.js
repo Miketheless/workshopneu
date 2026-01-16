@@ -89,6 +89,8 @@ function renderParticipants(n) {
       <div class="grid">
         <label>Vorname <input data-k="first_name" required></label>
         <label>Nachname <input data-k="last_name" required></label>
+        <label>Handynummer <input data-k="phone" type="tel" required></label>
+        <label>E-Mail <input data-k="email" type="email"></label>
         <label>Straße <input data-k="street" required></label>
         <label>Hausnr <input data-k="house_no" required></label>
         <label>PLZ <input data-k="zip" required></label>
@@ -117,6 +119,8 @@ document.getElementById("form").addEventListener("submit", async (e) => {
     return {
       first_name: get("first_name"),
       last_name: get("last_name"),
+      phone: get("phone"),
+      email: get("email"),
       street: get("street"),
       house_no: get("house_no"),
       zip: get("zip"),
@@ -127,21 +131,36 @@ document.getElementById("form").addEventListener("submit", async (e) => {
   const payload = {
     slot_id: slotSel.value,
     contact_email: document.getElementById("contact_email").value.trim(),
+    contact_phone: document.getElementById("contact_phone").value.trim(),
     participants,
     agbAccepted: document.getElementById("agb").checked,
     privacyAccepted: document.getElementById("privacy").checked
   };
 
-  const res = await fetch(`${SCRIPT_BASE}?action=book`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(payload)
-  });
+  try {
+    const res = await fetch(`${SCRIPT_BASE}?action=book`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
 
-  const data = await res.json();
-  msgEl.textContent = data.ok
-    ? `✅ Gebucht! Buchungs-ID: ${data.booking_id}`
-    : `❌ ${data.message || "Fehler"}`;
+    const data = await res.json();
+    
+    if (data.ok) {
+      // Weiterleitung zur Bestätigungsseite
+      const params = new URLSearchParams({
+        booking_id: data.booking_id,
+        date: slotSel.options[slotSel.selectedIndex].textContent,
+        email: payload.contact_email,
+        count: n
+      });
+      window.location.href = `success.html?${params.toString()}`;
+    } else {
+      msgEl.textContent = `❌ ${data.message || "Fehler bei der Buchung"}`;
+    }
+  } catch (error) {
+    msgEl.textContent = "❌ Verbindungsfehler. Bitte versuchen Sie es erneut.";
+  }
 });
 
 // Initialisierung

@@ -25,9 +25,16 @@
         <select id="slot_id" required></select>
       </label>
 
-      <label>Ihre E-Mail-Adresse
-        <input id="contact_email" type="email" placeholder="beispiel@email.de" required/>
-      </label>
+      <h3>Kontaktdaten</h3>
+      
+      <div class="grid">
+        <label>E-Mail-Adresse
+          <input id="contact_email" type="email" placeholder="beispiel@email.de" required/>
+        </label>
+        <label>Handynummer
+          <input id="contact_phone" type="tel" placeholder="+43 664 1234567" required/>
+        </label>
+      </div>
 
       <label>Anzahl Teilnehmer (1–8)
         <input id="count" type="number" min="1" max="8" value="1" required/>
@@ -36,14 +43,16 @@
       <h3>Teilnehmerdaten</h3>
       <div id="participants"></div>
 
-      <label class="chk">
-        <input id="agb" type="checkbox" required/>
-        <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.</span>
-      </label>
-      <label class="chk">
-        <input id="privacy" type="checkbox" required/>
-        <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen.</span>
-      </label>
+      <div class="checkbox-section">
+        <label class="chk">
+          <input id="agb" type="checkbox" required/>
+          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.</span>
+        </label>
+        <label class="chk">
+          <input id="privacy" type="checkbox" required/>
+          <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen.</span>
+        </label>
+      </div>
 
       <button type="submit">Verbindlich buchen</button>
       <p id="msg"></p>
