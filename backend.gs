@@ -20,7 +20,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // WICHTIG: Google Sheets ID hier eintragen!
-const SPREADSHEET_ID = "PASTE_YOUR_SPREADSHEET_ID_HERE";
+const SPREADSHEET_ID = "1NkaviS-fPq_A04HntatthchUYgjTto04Adicd-LvmBg"
 
 // Sheet-Namen
 const SHEET_SLOTS = "Slots";
