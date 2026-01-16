@@ -205,7 +205,7 @@ function renderMonthFilter() {
 }
 
 /**
- * Slots-Übersicht als Tabelle rendern
+ * Slots-Übersicht als kompaktes 3-Spalten Grid rendern
  */
 function renderSlots() {
   // Nach Monat filtern
@@ -216,39 +216,42 @@ function renderSlots() {
   // Nur zukünftige Termine
   const futureSlots = filteredSlots.filter(s => isFuture(s.date));
   
-  // Tabellen-Body Element finden
-  const tbody = document.getElementById("slots-tbody");
-  if (!tbody) {
-    console.error("slots-tbody nicht gefunden");
+  // Grid-Container finden
+  const container = document.getElementById("slots-container");
+  if (!container) {
+    console.error("slots-container nicht gefunden");
     return;
   }
   
   if (futureSlots.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="no-slots">Keine Termine verfügbar.</td></tr>';
+    container.innerHTML = '<div class="slots-empty">Keine Termine verfügbar.</div>';
     return;
   }
   
-  tbody.innerHTML = futureSlots.map(slot => {
+  // Kompakte Cards für jeden Termin
+  container.innerHTML = futureSlots.map(slot => {
     const free = slot.capacity - slot.booked;
     let availClass = "available";
-    let availText = `${free} Plätze`;
+    let capacityText = `${free}/${slot.capacity}`;
     
     if (free === 0) {
       availClass = "full";
-      availText = "Ausgebucht";
+      capacityText = "voll";
     } else if (free <= 2) {
       availClass = "few";
-      availText = `${free} ${free === 1 ? "Platz" : "Plätze"}`;
     }
     
+    // Kurzes Datum: "Mi, 25.02."
+    const [year, month, day] = slot.date.split("-");
+    const dateObj = new Date(year, month - 1, day);
+    const weekdayShort = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][dateObj.getDay()];
+    const shortDate = `${weekdayShort}, ${day}.${month}.`;
+    
     return `
-      <tr>
-        <td class="slot-date-cell">${formatDate(slot.date)}</td>
-        <td class="slot-time-cell">${slot.start}–${slot.end} Uhr</td>
-        <td class="slot-free-cell">
-          <span class="slot-free-badge ${availClass}">${availText}</span>
-        </td>
-      </tr>
+      <div class="slot-card ${availClass}">
+        <div class="slot-card-date">${shortDate}</div>
+        <div class="slot-card-capacity">${capacityText}</div>
+      </div>
     `;
   }).join("");
 }
