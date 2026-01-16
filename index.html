@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Platzreife buchen</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<header class="hero">
+  <h1>Platzreife-Kurs buchen</h1>
+  <p>09:00–15:00 • max. 8 Teilnehmer pro Termin</p>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>Freie Termine</h2>
+    <div class="row">
+      <label>Monat
+        <input id="month" type="month"/>
+      </label>
+    </div>
+    <div id="slots" class="slots"></div>
+  </section>
+
+  <section class="card">
+    <h2>Jetzt buchen</h2>
+    <form id="form">
+      <label>Termin
+        <select id="slot_id" required></select>
+      </label>
+
+      <label>Kontakt E-Mail
+        <input id="contact_email" type="email" required/>
+      </label>
+
+      <label>Anzahl Teilnehmer (1–8)
+        <input id="count" type="number" min="1" max="8" value="1" required/>
+      </label>
+
+      <h3>Teilnehmerdaten</h3>
+      <div id="participants"></div>
+
+      <label class="chk">
+        <input id="agb" type="checkbox" required/>
+        Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.
+      </label>
+      <label class="chk">
+        <input id="privacy" type="checkbox" required/>
+        Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen.
+      </label>
+
+      <button type="submit">Verbindlich buchen</button>
+      <p id="msg"></p>
+    </form>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
