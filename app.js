@@ -207,18 +207,14 @@ function renderMonthFilter() {
 
 
 /**
- * Slots-Übersicht als kompaktes 3-Spalten Grid rendern
+ * Slots-Übersicht – Modern & Einfach
  */
 function renderSlots() {
-  // Nach Monat filtern
-  const filteredSlots = selectedMonth 
-    ? allSlots.filter(s => getMonth(s.date) === selectedMonth)
-    : allSlots;
+  // Nur zukünftige Termine, sortiert nach Datum
+  const futureSlots = allSlots
+    .filter(s => isFuture(s.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
   
-  // Nur zukünftige Termine
-  const futureSlots = filteredSlots.filter(s => isFuture(s.date));
-  
-  // Grid-Container finden
   const container = document.getElementById("slots-container");
   if (!container) {
     console.error("slots-container nicht gefunden");
@@ -226,35 +222,35 @@ function renderSlots() {
   }
   
   if (futureSlots.length === 0) {
-    container.innerHTML = '<div class="slots-empty">Keine Termine verfügbar.</div>';
+    container.innerHTML = '<div class="slots-empty">Aktuell keine Termine verfügbar.</div>';
     return;
   }
   
-  // Kompakte Cards für jeden Termin
+  // Moderne Chip-Ansicht
   container.innerHTML = futureSlots.map(slot => {
     const free = slot.capacity - slot.booked;
-    let availClass = "available";
-    let capacityText = `${free}/${slot.capacity}`;
+    let statusClass = "open";
+    let statusText = `${free} frei`;
     
     if (free === 0) {
-      availClass = "full";
-      capacityText = "voll";
+      statusClass = "full";
+      statusText = "ausgebucht";
     } else if (free <= 2) {
-      availClass = "few";
+      statusClass = "few";
+      statusText = `nur ${free} frei`;
     }
     
-    // Kurzes Datum: "Mi, 25.02."
+    // Formatierung: "Mi 25. Feb"
     const [year, month, day] = slot.date.split("-");
     const dateObj = new Date(year, month - 1, day);
-    const weekdayShort = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][dateObj.getDay()];
-    const shortDate = `${weekdayShort}, ${day}.${month}.`;
+    const weekday = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][dateObj.getDay()];
+    const monthNames = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+    const displayDate = `${weekday} ${parseInt(day)}. ${monthNames[parseInt(month) - 1]}`;
     
-    return `
-      <div class="slot-card ${availClass}">
-        <div class="slot-card-date">${shortDate}</div>
-        <div class="slot-card-capacity">${capacityText}</div>
-      </div>
-    `;
+    return `<div class="slot-chip ${statusClass}">
+      <span class="chip-date">${displayDate}</span>
+      <span class="chip-status">${statusText}</span>
+    </div>`;
   }).join("");
 }
 

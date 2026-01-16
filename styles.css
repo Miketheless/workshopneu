@@ -503,99 +503,92 @@ a:hover {
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SLOTS GRID – Kompakte 3-Spalten Ansicht
+   SLOTS – Moderne Chip-Ansicht
    ══════════════════════════════════════════════════════════════════════════════ */
-.slots-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+.slots-modern {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  justify-content: center;
 }
 
 .slots-loading,
 .slots-empty {
-  grid-column: 1 / -1;
+  width: 100%;
   text-align: center;
-  padding: 2rem;
+  padding: 2.5rem 1rem;
   color: var(--color-text-muted);
   font-style: italic;
 }
 
-/* Einzelne Termin-Card */
-.slot-card {
-  display: flex;
-  flex-direction: column;
+/* Termin-Chip */
+.slot-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.875rem 0.5rem;
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-border-light);
-  border-radius: 4px;
-  text-align: center;
-  transition: var(--transition);
-}
-
-.slot-card:hover {
-  border-color: var(--color-primary);
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
   background: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-border);
+  border-radius: 50px;
+  font-family: var(--font-sans);
+  transition: all 0.2s ease;
+  cursor: default;
 }
 
-/* Datum */
-.slot-card-date {
-  font-family: var(--font-sans);
+.slot-chip:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 12px rgba(74, 140, 123, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Datum im Chip */
+.chip-date {
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--color-text);
-  margin-bottom: 0.25rem;
 }
 
-/* Kapazität (frei/gesamt) */
-.slot-card-capacity {
-  font-size: 0.75rem;
+/* Status-Badge */
+.chip-status {
+  font-size: 0.6875rem;
   font-weight: 600;
-  padding: 0.25rem 0.625rem;
-  border-radius: 3px;
-  background: var(--color-primary-faded);
-  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 20px;
+  background: var(--color-primary);
+  color: white;
 }
 
 /* Wenig frei */
-.slot-card.few .slot-card-capacity {
-  background: rgba(212, 168, 75, 0.2);
-  color: #8b7030;
+.slot-chip.few .chip-status {
+  background: #d4a84b;
 }
 
 /* Ausgebucht */
-.slot-card.full {
+.slot-chip.full {
   opacity: 0.5;
   pointer-events: none;
 }
 
-.slot-card.full .slot-card-capacity {
-  background: rgba(196, 92, 92, 0.15);
-  color: var(--color-error);
+.slot-chip.full .chip-status {
+  background: var(--color-text-muted);
 }
 
-/* Responsive: 2 Spalten auf Tablet */
-@media (max-width: 768px) {
-  .slots-grid {
-    grid-template-columns: repeat(2, 1fr);
+/* Responsive */
+@media (max-width: 480px) {
+  .slot-chip {
+    padding: 0.5rem 0.875rem;
     gap: 0.5rem;
   }
   
-  .slot-card {
-    padding: 0.75rem 0.375rem;
-  }
-  
-  .slot-card-date {
+  .chip-date {
     font-size: 0.875rem;
   }
-}
-
-/* Responsive: 2 Spalten auch auf kleinen Screens */
-@media (max-width: 480px) {
-  .slots-grid {
-    grid-template-columns: repeat(2, 1fr);
+  
+  .chip-status {
+    font-size: 0.625rem;
+    padding: 0.2rem 0.4rem;
   }
 }
 
