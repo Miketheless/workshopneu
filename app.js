@@ -1,7 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * PLATZREIFE – Frontend JavaScript
- * Golfclub Metzenhof – Version 2.1 (17.01.2026)
+ * Golfclub Metzenhof – Version 2.2 (17.01.2026) – Robuste Datumserkennung
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -70,45 +70,77 @@ const MONTHS = ["Jänner", "Februar", "März", "April", "Mai", "Juni",
                 "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 /**
+ * Datum parsen: Unterstützt YYYY-MM-DD und DD.MM.YYYY
+ */
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  let year, month, day;
+  
+  if (dateStr.includes("-")) {
+    [year, month, day] = dateStr.split("-").map(Number);
+  } else if (dateStr.includes(".")) {
+    [day, month, year] = dateStr.split(".").map(Number);
+  } else {
+    return null;
+  }
+  
+  return { year, month, day };
+}
+
+/**
  * Datum formatieren: "2026-02-25" → "Mittwoch, 25.02.2026"
  */
 function formatDate(dateStr) {
-  const [year, month, day] = dateStr.split("-");
+  const parsed = parseDate(dateStr);
+  if (!parsed) return dateStr;
+  
+  const { year, month, day } = parsed;
   const date = new Date(year, month - 1, day);
   const weekday = WEEKDAYS[date.getDay()];
-  return `${weekday}, ${day}.${month}.${year}`;
+  return `${weekday}, ${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
 }
 
 /**
  * Kurzes Datum: "2026-02-25" → "25.02.2026"
  */
 function formatDateShort(dateStr) {
-  const [year, month, day] = dateStr.split("-");
-  return `${day}.${month}.${year}`;
+  const parsed = parseDate(dateStr);
+  if (!parsed) return dateStr;
+  
+  const { year, month, day } = parsed;
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
 }
 
 /**
  * Monat extrahieren: "2026-02-25" → "2026-02"
  */
 function getMonth(dateStr) {
-  return dateStr.substring(0, 7);
+  const parsed = parseDate(dateStr);
+  if (!parsed) return "";
+  return `${parsed.year}-${String(parsed.month).padStart(2, "0")}`;
 }
 
 /**
  * Monat formatieren: "2026-02" → "Februar 2026"
  */
 function formatMonth(monthStr) {
+  if (!monthStr || !monthStr.includes("-")) return monthStr;
   const [year, month] = monthStr.split("-");
   return `${MONTHS[parseInt(month) - 1]} ${year}`;
 }
 
 /**
  * Prüfen ob Datum in der Zukunft liegt
+ * Unterstützt YYYY-MM-DD und DD.MM.YYYY
  */
 function isFuture(dateStr) {
+  const parsed = parseDate(dateStr);
+  if (!parsed) return false;
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const [year, month, day] = dateStr.split("-");
+  
+  const { year, month, day } = parsed;
   const date = new Date(year, month - 1, day);
   return date >= today;
 }
@@ -210,9 +242,15 @@ function renderMonthFilter() {
  * Slots-Übersicht – Modern & Einfach
  */
 function renderSlots() {
-  // Nur zukünftige Termine, sortiert nach Datum
+  // Robuste Slot-Extraktion
   const futureSlots = allSlots
-    .filter(s => isFuture(s.date))
+    .map(slot => {
+      const dateStr = slot.date || slot.slot_id || "";
+      const capacity = parseInt(slot.capacity) || MAX_CAPACITY;
+      const booked = parseInt(slot.booked) || 0;
+      return { ...slot, date: dateStr, capacity, booked };
+    })
+    .filter(s => s.date && isFuture(s.date))
     .sort((a, b) => a.date.localeCompare(b.date));
   
   const container = document.getElementById("slots-container");
@@ -220,6 +258,8 @@ function renderSlots() {
     console.error("slots-container nicht gefunden");
     return;
   }
+  
+  console.log(`${futureSlots.length} zukünftige Termine für Anzeige`);
   
   if (futureSlots.length === 0) {
     container.innerHTML = '<div class="slots-empty">Aktuell keine Termine verfügbar.</div>';
@@ -241,11 +281,13 @@ function renderSlots() {
     }
     
     // Formatierung: "Mi 25. Feb"
-    const [year, month, day] = slot.date.split("-");
-    const dateObj = new Date(year, month - 1, day);
+    const parsed = parseDate(slot.date);
+    if (!parsed) return "";
+    
+    const dateObj = new Date(parsed.year, parsed.month - 1, parsed.day);
     const weekday = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][dateObj.getDay()];
     const monthNames = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-    const displayDate = `${weekday} ${parseInt(day)}. ${monthNames[parseInt(month) - 1]}`;
+    const displayDate = `${weekday} ${parsed.day}. ${monthNames[parsed.month - 1]}`;
     
     return `<div class="slot-chip ${statusClass}">
       <span class="chip-date">${displayDate}</span>
@@ -259,18 +301,35 @@ function renderSlots() {
  */
 function renderSlotSelect() {
   // Nur buchbare Slots (Zukunft + freie Plätze)
-  const bookableSlots = allSlots.filter(s => 
-    isFuture(s.date) && (s.capacity - s.booked) > 0
-  );
+  const bookableSlots = allSlots.filter(slot => {
+    // Robuste Prüfung
+    const dateStr = slot.date || slot.slot_id;
+    if (!dateStr) return false;
+    
+    const capacity = parseInt(slot.capacity) || MAX_CAPACITY;
+    const booked = parseInt(slot.booked) || 0;
+    const free = capacity - booked;
+    
+    return isFuture(dateStr) && free > 0;
+  });
+  
+  console.log(`${bookableSlots.length} buchbare Termine gefunden`);
   
   elements.slotSelect.innerHTML = '<option value="">Bitte wählen...</option>';
+  
   bookableSlots.forEach(slot => {
-    const free = slot.capacity - slot.booked;
+    const capacity = parseInt(slot.capacity) || MAX_CAPACITY;
+    const booked = parseInt(slot.booked) || 0;
+    const free = capacity - booked;
+    const dateStr = slot.date || slot.slot_id;
+    const start = slot.start || COURSE_START;
+    const end = slot.end || COURSE_END;
+    
     const option = document.createElement("option");
-    option.value = slot.slot_id;
-    option.textContent = `${formatDate(slot.date)} · ${slot.start}–${slot.end} Uhr · ${free} frei`;
+    option.value = slot.slot_id || dateStr;
+    option.textContent = `${formatDate(dateStr)} · ${start}–${end} Uhr · ${free} frei`;
     option.dataset.free = free;
-    option.dataset.date = slot.date;
+    option.dataset.date = dateStr;
     elements.slotSelect.appendChild(option);
   });
 }
@@ -518,6 +577,16 @@ async function init() {
   }
   
   console.log(`${allSlots.length} Termine geladen`);
+  console.log("Erster Slot:", JSON.stringify(allSlots[0]));
+  
+  // Debug: Prüfen wie viele Termine in Zukunft liegen
+  const today = new Date().toISOString().split("T")[0];
+  console.log("Heute:", today);
+  const futureCount = allSlots.filter(s => {
+    const d = s.date || s.slot_id;
+    return d && d >= today;
+  }).length;
+  console.log(`${futureCount} Termine in der Zukunft`);
   
   // UI rendern
   renderMonthFilter();
