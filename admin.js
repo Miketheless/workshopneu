@@ -1,8 +1,13 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * PLATZREIFE – Admin JavaScript
- * Golfclub Metzenhof – Version 4.2 (17.01.2026)
- * Neu: Teilnehmertabelle + Sortierbare Spalten
+ * Golfclub Metzenhof – Version 5.0 (17.01.2026)
+ * 
+ * Features:
+ * - Sortierbare Tabellen
+ * - Admin-Checkboxen (Rechnung, Erschienen, Formulare)
+ * - Bezahlt-Datum
+ * - Admin-Stornierung
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -11,6 +16,19 @@
 // ══════════════════════════════════════════════════════════════
 
 const API_BASE = "https://script.google.com/macros/s/AKfycbzqu4baOn_qlzcQkeNK6NumYOEhRwTfGP-QbLKDtb8fi49MMq-TStg5-ZYevPUgYOq3/exec";
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+
+let currentAdminKey = "";
+let bookingsData = [];
+
+// Sortierung
+let bookingsSortColumn = "slot_id";
+let bookingsSortDir = "asc";
+let participantsSortColumn = "slot_id";
+let participantsSortDir = "asc";
 
 // ══════════════════════════════════════════════════════════════
 // DOM ELEMENTE
@@ -29,55 +47,52 @@ const elements = {
   statCancelled: document.getElementById("stat-cancelled"),
   statParticipants: document.getElementById("stat-participants"),
   bookingsContainer: document.getElementById("bookings-container"),
-  participantsContainer: document.getElementById("participants-container")
+  participantsContainer: document.getElementById("participants-container"),
+  loadingOverlay: document.getElementById("loading-overlay")
 };
-
-// ══════════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════════
-
-let currentAdminKey = "";
-let bookingsData = [];
-
-// Sortierung
-let bookingsSortColumn = "timestamp";
-let bookingsSortDir = "desc";
-let participantsSortColumn = "booking_id";
-let participantsSortDir = "asc";
 
 // ══════════════════════════════════════════════════════════════
 // HILFSFUNKTIONEN
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Datum formatieren: "2026-02-25" oder ISO → "25.02.2026"
- */
+function showLoading(show = true) {
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.toggle("hidden", !show);
+  }
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "–";
   
-  // ISO Format
-  if (dateStr.includes("T")) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("de-AT");
-  }
-  
-  // YYYY-MM-DD Format
-  if (dateStr.includes("-")) {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  try {
+    let date;
+    if (dateStr instanceof Date) {
+      date = dateStr;
+    } else if (typeof dateStr === "string") {
+      if (dateStr.includes("T")) {
+        date = new Date(dateStr);
+      } else if (dateStr.includes("-")) {
+        const parts = dateStr.split("-");
+        if (parts.length === 3) {
+          return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+      }
     }
+    
+    if (date && !isNaN(date.getTime())) {
+      return date.toLocaleDateString("de-AT");
+    }
+  } catch (e) {
+    console.warn("Datum-Parse-Fehler:", e);
   }
   
-  return dateStr;
+  return String(dateStr);
 }
 
-/**
- * Timestamp formatieren
- */
 function formatTimestamp(ts) {
   if (!ts) return "–";
   const date = new Date(ts);
+  if (isNaN(date.getTime())) return "–";
   return date.toLocaleString("de-AT", {
     day: "2-digit",
     month: "2-digit",
@@ -87,17 +102,11 @@ function formatTimestamp(ts) {
   });
 }
 
-/**
- * Nachricht anzeigen
- */
 function showLoginMessage(text, type = "") {
   elements.loginMessage.textContent = text;
   elements.loginMessage.className = `message ${type}`;
 }
 
-/**
- * Sortier-Icon generieren
- */
 function getSortIcon(column, currentColumn, currentDir) {
   if (column !== currentColumn) {
     return '<span class="sort-icon">⇅</span>';
@@ -107,27 +116,28 @@ function getSortIcon(column, currentColumn, currentDir) {
     : '<span class="sort-icon active">↓</span>';
 }
 
-/**
- * Generische Sortierfunktion
- */
 function sortData(data, column, direction) {
   return [...data].sort((a, b) => {
     let valA = a[column];
     let valB = b[column];
     
-    // Null/undefined handling
     if (valA == null) valA = "";
     if (valB == null) valB = "";
     
-    // Datum/Timestamp erkennen
-    if (column === "timestamp" || column === "cancelled_at" || column === "slot_id") {
+    // Datum/Timestamp
+    if (column === "timestamp" || column === "cancelled_at" || column === "slot_id" || column === "paid_date") {
       valA = new Date(valA || 0).getTime();
       valB = new Date(valB || 0).getTime();
     }
     // Zahlen
-    else if (column === "participants_count") {
+    else if (column === "participants_count" || column === "participant_nr") {
       valA = parseInt(valA) || 0;
       valB = parseInt(valB) || 0;
+    }
+    // Booleans
+    else if (column === "invoice_sent" || column === "appeared" || column === "membership_form" || column === "dsgvo_form") {
+      valA = valA ? 1 : 0;
+      valB = valB ? 1 : 0;
     }
     // Strings
     else {
@@ -150,6 +160,52 @@ async function fetchBookings(adminKey) {
   return await response.json();
 }
 
+async function updateBookingField(bookingId, field, value) {
+  showLoading(true);
+  try {
+    const url = `${API_BASE}?action=admin_update&admin_key=${encodeURIComponent(currentAdminKey)}&booking_id=${encodeURIComponent(bookingId)}&field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
+    const response = await fetch(url);
+    const result = await response.json();
+    
+    if (!result.ok) {
+      alert("Fehler: " + (result.message || "Unbekannter Fehler"));
+    }
+    return result;
+  } catch (error) {
+    console.error("Update-Fehler:", error);
+    alert("Verbindungsfehler beim Speichern");
+    return { ok: false };
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function cancelBooking(bookingId) {
+  if (!confirm(`Buchung ${bookingId} wirklich stornieren?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`)) {
+    return;
+  }
+  
+  showLoading(true);
+  try {
+    const url = `${API_BASE}?action=admin_cancel&admin_key=${encodeURIComponent(currentAdminKey)}&booking_id=${encodeURIComponent(bookingId)}`;
+    const response = await fetch(url);
+    const result = await response.json();
+    
+    if (result.ok) {
+      // Daten neu laden
+      await handleRefresh();
+      alert("Buchung erfolgreich storniert!");
+    } else {
+      alert("Fehler: " + (result.message || "Unbekannter Fehler"));
+    }
+  } catch (error) {
+    console.error("Stornierung-Fehler:", error);
+    alert("Verbindungsfehler bei der Stornierung");
+  } finally {
+    showLoading(false);
+  }
+}
+
 function getExportUrl(adminKey) {
   return `${API_BASE}?action=admin_export_csv&admin_key=${encodeURIComponent(adminKey)}`;
 }
@@ -158,16 +214,13 @@ function getExportUrl(adminKey) {
 // RENDER FUNKTIONEN
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Statistiken berechnen und anzeigen
- */
 function renderStats() {
   const total = bookingsData.length;
   const confirmed = bookingsData.filter(b => b.status === "CONFIRMED").length;
   const cancelled = bookingsData.filter(b => b.status === "CANCELLED").length;
   const participants = bookingsData
     .filter(b => b.status === "CONFIRMED")
-    .reduce((sum, b) => sum + (b.participants_count || 0), 0);
+    .reduce((sum, b) => sum + (parseInt(b.participants_count) || 0), 0);
   
   elements.statTotal.textContent = total;
   elements.statConfirmed.textContent = confirmed;
@@ -175,73 +228,203 @@ function renderStats() {
   elements.statParticipants.textContent = participants;
 }
 
-/**
- * Buchungstabelle rendern (mit Sortierung)
- */
 function renderBookings() {
   if (bookingsData.length === 0) {
     elements.bookingsContainer.innerHTML = '<p class="text-muted">Keine Buchungen vorhanden.</p>';
     return;
   }
   
-  // Sortieren
   const sorted = sortData(bookingsData, bookingsSortColumn, bookingsSortDir);
   
-  const columns = [
-    { key: "booking_id", label: "Buchungs-ID" },
-    { key: "timestamp", label: "Buchungsdatum" },
-    { key: "slot_id", label: "Kurstermin" },
-    { key: "contact_email", label: "E-Mail" },
-    { key: "contact_phone", label: "Telefon" },
-    { key: "participants_count", label: "Teilnehmer" },
-    { key: "status", label: "Status" }
-  ];
-  
   const tableHtml = `
-    <table class="admin-table sortable">
+    <table class="admin-table">
       <thead>
         <tr>
-          ${columns.map(col => `
-            <th class="sortable-header" data-column="${col.key}" data-table="bookings">
-              ${col.label} ${getSortIcon(col.key, bookingsSortColumn, bookingsSortDir)}
-            </th>
-          `).join("")}
+          <th class="sortable-header" data-column="booking_id" data-table="bookings">
+            ID ${getSortIcon("booking_id", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="slot_id" data-table="bookings">
+            Termin ${getSortIcon("slot_id", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="contact_email" data-table="bookings">
+            E-Mail ${getSortIcon("contact_email", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="contact_phone" data-table="bookings">
+            Telefon ${getSortIcon("contact_phone", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="participants_count" data-table="bookings">
+            TN ${getSortIcon("participants_count", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="invoice_sent" data-table="bookings">
+            Rechnung ${getSortIcon("invoice_sent", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="appeared" data-table="bookings">
+            Erschienen ${getSortIcon("appeared", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="membership_form" data-table="bookings">
+            Mitglied ${getSortIcon("membership_form", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="dsgvo_form" data-table="bookings">
+            DSGVO ${getSortIcon("dsgvo_form", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="paid_date" data-table="bookings">
+            Bezahlt am ${getSortIcon("paid_date", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="sortable-header" data-column="status" data-table="bookings">
+            Status ${getSortIcon("status", bookingsSortColumn, bookingsSortDir)}
+          </th>
+          <th class="no-sort">Aktion</th>
         </tr>
       </thead>
       <tbody>
-        ${sorted.map(booking => `
-          <tr class="${booking.status === "CANCELLED" ? "row-cancelled" : ""}">
-            <td><strong>${booking.booking_id || "–"}</strong></td>
-            <td>${formatTimestamp(booking.timestamp)}</td>
-            <td>${formatDate(booking.slot_id)}</td>
-            <td><a href="mailto:${booking.contact_email}">${booking.contact_email || "–"}</a></td>
-            <td><a href="tel:${booking.contact_phone}">${booking.contact_phone || "–"}</a></td>
-            <td class="text-center">
-              <span class="participant-count">${booking.participants_count || 0}</span>
-            </td>
-            <td>
-              <span class="status-badge ${booking.status === "CONFIRMED" ? "confirmed" : "cancelled"}">
-                ${booking.status === "CONFIRMED" ? "✓ Bestätigt" : "✕ Storniert"}
-              </span>
-              ${booking.cancelled_at ? `<br><small class="text-muted">${formatTimestamp(booking.cancelled_at)}</small>` : ""}
-            </td>
-          </tr>
-        `).join("")}
+        ${sorted.map(b => {
+          const isCancelled = b.status === "CANCELLED";
+          const rowClass = isCancelled ? "row-cancelled" : "";
+          const disabled = isCancelled ? "disabled" : "";
+          
+          // Bezahlt-Datum formatieren für Input
+          let paidDateValue = "";
+          if (b.paid_date) {
+            try {
+              const d = new Date(b.paid_date);
+              if (!isNaN(d.getTime())) {
+                paidDateValue = d.toISOString().split("T")[0];
+              }
+            } catch (e) {}
+          }
+          
+          return `
+            <tr class="${rowClass}">
+              <td><strong class="text-small">${b.booking_id || "–"}</strong></td>
+              <td>${formatDate(b.slot_id)}</td>
+              <td><a href="mailto:${b.contact_email}" class="text-small">${b.contact_email || "–"}</a></td>
+              <td><a href="tel:${b.contact_phone}" class="text-small">${b.contact_phone || "–"}</a></td>
+              <td style="text-align:center;">${b.participants_count || 0}</td>
+              <td style="text-align:center;">
+                <input type="checkbox" class="admin-checkbox" 
+                       data-booking-id="${b.booking_id}" 
+                       data-field="invoice_sent"
+                       ${b.invoice_sent ? "checked" : ""} 
+                       ${disabled}>
+              </td>
+              <td style="text-align:center;">
+                <input type="checkbox" class="admin-checkbox" 
+                       data-booking-id="${b.booking_id}" 
+                       data-field="appeared"
+                       ${b.appeared ? "checked" : ""} 
+                       ${disabled}>
+              </td>
+              <td style="text-align:center;">
+                <input type="checkbox" class="admin-checkbox" 
+                       data-booking-id="${b.booking_id}" 
+                       data-field="membership_form"
+                       ${b.membership_form ? "checked" : ""} 
+                       ${disabled}>
+              </td>
+              <td style="text-align:center;">
+                <input type="checkbox" class="admin-checkbox" 
+                       data-booking-id="${b.booking_id}" 
+                       data-field="dsgvo_form"
+                       ${b.dsgvo_form ? "checked" : ""} 
+                       ${disabled}>
+              </td>
+              <td>
+                <input type="date" class="admin-date" 
+                       data-booking-id="${b.booking_id}" 
+                       data-field="paid_date"
+                       value="${paidDateValue}"
+                       ${disabled}>
+              </td>
+              <td>
+                <span class="status-badge ${isCancelled ? "cancelled" : "confirmed"}">
+                  ${isCancelled ? "✕ Storniert" : "✓ OK"}
+                </span>
+              </td>
+              <td>
+                ${!isCancelled ? `
+                  <button type="button" class="btn-cancel" data-booking-id="${b.booking_id}">
+                    Stornieren
+                  </button>
+                ` : "–"}
+              </td>
+            </tr>
+          `;
+        }).join("")}
       </tbody>
     </table>
   `;
   
   elements.bookingsContainer.innerHTML = tableHtml;
   
-  // Event Listener für Sortierung
-  attachSortListeners("bookings");
+  // Event Listener
+  attachBookingEventListeners();
 }
 
-/**
- * Teilnehmertabelle rendern (mit Sortierung)
- */
+function attachBookingEventListeners() {
+  // Sortierung
+  document.querySelectorAll('.sortable-header[data-table="bookings"]').forEach(header => {
+    header.addEventListener("click", () => {
+      const column = header.dataset.column;
+      if (bookingsSortColumn === column) {
+        bookingsSortDir = bookingsSortDir === "asc" ? "desc" : "asc";
+      } else {
+        bookingsSortColumn = column;
+        bookingsSortDir = "asc";
+      }
+      renderBookings();
+    });
+  });
+  
+  // Checkboxen
+  document.querySelectorAll(".admin-checkbox").forEach(checkbox => {
+    checkbox.addEventListener("change", async (e) => {
+      const bookingId = e.target.dataset.bookingId;
+      const field = e.target.dataset.field;
+      const value = e.target.checked;
+      
+      const result = await updateBookingField(bookingId, field, value);
+      
+      if (result.ok) {
+        // Lokalen State aktualisieren
+        const booking = bookingsData.find(b => b.booking_id === bookingId);
+        if (booking) {
+          booking[field] = value;
+        }
+      } else {
+        // Checkbox zurücksetzen
+        e.target.checked = !value;
+      }
+    });
+  });
+  
+  // Datumseingaben
+  document.querySelectorAll(".admin-date").forEach(input => {
+    input.addEventListener("change", async (e) => {
+      const bookingId = e.target.dataset.bookingId;
+      const field = e.target.dataset.field;
+      const value = e.target.value;
+      
+      const result = await updateBookingField(bookingId, field, value);
+      
+      if (result.ok) {
+        const booking = bookingsData.find(b => b.booking_id === bookingId);
+        if (booking) {
+          booking[field] = value;
+        }
+      }
+    });
+  });
+  
+  // Stornieren-Buttons
+  document.querySelectorAll(".btn-cancel").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const bookingId = e.target.dataset.bookingId;
+      cancelBooking(bookingId);
+    });
+  });
+}
+
 function renderParticipants() {
-  // Alle Teilnehmer aus allen Buchungen extrahieren
   const allParticipants = [];
   
   bookingsData.forEach(booking => {
@@ -259,9 +442,7 @@ function renderParticipants() {
           street: p.street || "",
           house_no: p.house_no || "",
           zip: p.zip || "",
-          city: p.city || "",
-          full_name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-          full_address: `${p.street || ""} ${p.house_no || ""}, ${p.zip || ""} ${p.city || ""}`.trim()
+          city: p.city || ""
         });
       });
     }
@@ -272,12 +453,11 @@ function renderParticipants() {
     return;
   }
   
-  // Sortieren
   const sorted = sortData(allParticipants, participantsSortColumn, participantsSortDir);
   
   const columns = [
     { key: "booking_id", label: "Buchungs-ID" },
-    { key: "slot_id", label: "Kurstermin" },
+    { key: "slot_id", label: "Termin" },
     { key: "participant_nr", label: "Nr." },
     { key: "first_name", label: "Vorname" },
     { key: "last_name", label: "Nachname" },
@@ -289,7 +469,7 @@ function renderParticipants() {
   ];
   
   const tableHtml = `
-    <table class="admin-table sortable participants-table">
+    <table class="admin-table">
       <thead>
         <tr>
           ${columns.map(col => `
@@ -300,27 +480,30 @@ function renderParticipants() {
         </tr>
       </thead>
       <tbody>
-        ${sorted.map(p => `
-          <tr class="${p.booking_status === "CANCELLED" ? "row-cancelled" : ""}">
-            <td><small>${p.booking_id || "–"}</small></td>
-            <td>${formatDate(p.slot_id)}</td>
-            <td class="text-center">${p.participant_nr}</td>
-            <td><strong>${p.first_name || "–"}</strong></td>
-            <td><strong>${p.last_name || "–"}</strong></td>
-            <td>${p.street || "–"}</td>
-            <td>${p.house_no || "–"}</td>
-            <td>${p.zip || "–"}</td>
-            <td>${p.city || "–"}</td>
-            <td>
-              <span class="status-badge ${p.booking_status === "CONFIRMED" ? "confirmed" : "cancelled"}">
-                ${p.booking_status === "CONFIRMED" ? "✓" : "✕"}
-              </span>
-            </td>
-          </tr>
-        `).join("")}
+        ${sorted.map(p => {
+          const isCancelled = p.booking_status === "CANCELLED";
+          return `
+            <tr class="${isCancelled ? "row-cancelled" : ""}">
+              <td class="text-small">${p.booking_id || "–"}</td>
+              <td>${formatDate(p.slot_id)}</td>
+              <td style="text-align:center;">${p.participant_nr}</td>
+              <td><strong>${p.first_name || "–"}</strong></td>
+              <td><strong>${p.last_name || "–"}</strong></td>
+              <td>${p.street || "–"}</td>
+              <td>${p.house_no || "–"}</td>
+              <td>${p.zip || "–"}</td>
+              <td>${p.city || "–"}</td>
+              <td>
+                <span class="status-badge ${isCancelled ? "cancelled" : "confirmed"}">
+                  ${isCancelled ? "✕" : "✓"}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join("")}
       </tbody>
     </table>
-    <p class="table-summary">
+    <p class="text-small" style="margin-top: 0.5rem; color: #666;">
       Gesamt: <strong>${allParticipants.length}</strong> Teilnehmer 
       (${allParticipants.filter(p => p.booking_status === "CONFIRMED").length} bestätigt, 
       ${allParticipants.filter(p => p.booking_status === "CANCELLED").length} storniert)
@@ -329,38 +512,17 @@ function renderParticipants() {
   
   elements.participantsContainer.innerHTML = tableHtml;
   
-  // Event Listener für Sortierung
-  attachSortListeners("participants");
-}
-
-/**
- * Event Listener für sortierbare Spalten
- */
-function attachSortListeners(tableType) {
-  const headers = document.querySelectorAll(`.sortable-header[data-table="${tableType}"]`);
-  
-  headers.forEach(header => {
+  // Sortierung
+  document.querySelectorAll('.sortable-header[data-table="participants"]').forEach(header => {
     header.addEventListener("click", () => {
       const column = header.dataset.column;
-      
-      if (tableType === "bookings") {
-        // Toggle Richtung wenn gleiche Spalte
-        if (bookingsSortColumn === column) {
-          bookingsSortDir = bookingsSortDir === "asc" ? "desc" : "asc";
-        } else {
-          bookingsSortColumn = column;
-          bookingsSortDir = "asc";
-        }
-        renderBookings();
+      if (participantsSortColumn === column) {
+        participantsSortDir = participantsSortDir === "asc" ? "desc" : "asc";
       } else {
-        if (participantsSortColumn === column) {
-          participantsSortDir = participantsSortDir === "asc" ? "desc" : "asc";
-        } else {
-          participantsSortColumn = column;
-          participantsSortDir = "asc";
-        }
-        renderParticipants();
+        participantsSortColumn = column;
+        participantsSortDir = "asc";
       }
+      renderParticipants();
     });
   });
 }
@@ -372,13 +534,13 @@ function attachSortListeners(tableType) {
 async function handleLogin() {
   const key = elements.adminKey.value.trim();
   if (!key) {
-    showLoginMessage("Bitte geben Sie den Admin-Schlüssel ein.", "error");
+    showLoginMessage("Bitte Admin-Schlüssel eingeben.", "error");
     return;
   }
   
   elements.loginBtn.disabled = true;
   elements.loginBtn.textContent = "Wird geprüft...";
-  showLoginMessage("Anmeldung wird geprüft...", "loading");
+  showLoginMessage("Anmeldung...", "loading");
   
   try {
     const result = await fetchBookings(key);
@@ -387,22 +549,20 @@ async function handleLogin() {
       currentAdminKey = key;
       bookingsData = result.bookings || [];
       
-      // UI wechseln
       elements.loginSection.classList.add("hidden");
       elements.adminPanel.classList.remove("hidden");
       
-      // Daten anzeigen
       renderStats();
       renderBookings();
       renderParticipants();
     } else {
-      showLoginMessage(result.message || "Ungültiger Admin-Schlüssel.", "error");
+      showLoginMessage(result.message || "Ungültiger Schlüssel.", "error");
       elements.loginBtn.disabled = false;
       elements.loginBtn.textContent = "Anmelden";
     }
   } catch (error) {
     console.error("Login-Fehler:", error);
-    showLoginMessage("Verbindungsfehler. Bitte versuchen Sie es später.", "error");
+    showLoginMessage("Verbindungsfehler.", "error");
     elements.loginBtn.disabled = false;
     elements.loginBtn.textContent = "Anmelden";
   }
@@ -410,7 +570,8 @@ async function handleLogin() {
 
 async function handleRefresh() {
   elements.refreshBtn.disabled = true;
-  elements.refreshBtn.textContent = "Lädt...";
+  elements.refreshBtn.textContent = "⏳ Lädt...";
+  showLoading(true);
   
   try {
     const result = await fetchBookings(currentAdminKey);
@@ -425,16 +586,19 @@ async function handleRefresh() {
     console.error("Refresh-Fehler:", error);
   }
   
+  showLoading(false);
   elements.refreshBtn.disabled = false;
-  elements.refreshBtn.textContent = "Daten aktualisieren";
+  elements.refreshBtn.textContent = "🔄 Aktualisieren";
 }
 
 function handleExport() {
-  const url = getExportUrl(currentAdminKey);
-  window.open(url, "_blank");
+  window.open(getExportUrl(currentAdminKey), "_blank");
 }
 
-// Event Listener
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+
 elements.loginBtn.addEventListener("click", handleLogin);
 elements.adminKey.addEventListener("keypress", (e) => {
   if (e.key === "Enter") handleLogin();
@@ -442,4 +606,4 @@ elements.adminKey.addEventListener("keypress", (e) => {
 elements.refreshBtn.addEventListener("click", handleRefresh);
 elements.exportBtn.addEventListener("click", handleExport);
 
-console.log("🔐 Admin Panel v4.2 geladen");
+console.log("🔐 Admin Panel v5.0 geladen");

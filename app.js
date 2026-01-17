@@ -14,7 +14,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbw2p10V1q7BD9BxLEawGyQr2dWrdK1aVsl406PvqB5JL3MU3tHWYEWgAWZekbi_XNAEiw/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbzqu4baOn_qlzcQkeNK6NumYOEhRwTfGP-QbLKDtb8fi49MMq-TStg5-ZYevPUgYOq3/exec",
   MAX_PARTICIPANTS: 8,
   COURSE_START: "09:00",
   COURSE_END: "15:00",
@@ -670,7 +670,7 @@ async function handleSubmit(e) {
       console.log("Server-Antwort:", result);
       
       if (result.success || result.ok) {
-        showSuccess(result.booking_id, slotId, count, email);
+        showSuccess(result.booking_id, slotId, count, email, result.email_sent);
       } else {
         throw new Error(result.error || result.message || "Buchung fehlgeschlagen.");
       }
@@ -696,7 +696,7 @@ async function handleSubmit(e) {
 /**
  * Erfolgsanzeige
  */
-function showSuccess(bookingId, slotId, count, email) {
+function showSuccess(bookingId, slotId, count, email, emailSent) {
   const formSection = document.querySelector(".booking-form-section");
   const successSection = document.getElementById("success-section");
   
@@ -709,11 +709,21 @@ function showSuccess(bookingId, slotId, count, email) {
     const dateEl = document.getElementById("success-date");
     const countEl = document.getElementById("success-count");
     const emailEl = document.getElementById("success-email");
+    const emailStatusEl = document.getElementById("email-status-text");
     
     if (idEl) idEl.textContent = bookingId || "–";
     if (dateEl) dateEl.textContent = formatDateLong(slotId);
     if (countEl) countEl.textContent = count;
     if (emailEl) emailEl.textContent = email;
+    
+    // E-Mail-Status anzeigen
+    if (emailStatusEl) {
+      if (emailSent) {
+        emailStatusEl.textContent = "Eine Bestätigungs-E-Mail mit allen Details wurde an Sie gesendet.";
+      } else {
+        emailStatusEl.textContent = "Ihre Buchung wurde erfolgreich registriert.";
+      }
+    }
   }
   
   window.scrollTo({ top: 0, behavior: "smooth" });

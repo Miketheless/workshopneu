@@ -96,11 +96,40 @@ function jsonResponse(data) {
 /**
  * Datum formatieren für E-Mail
  */
-function formatDateForEmail(dateStr) {
+function formatDateForEmail(dateValue) {
   const weekdays = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-  const [year, month, day] = dateStr.split("-");
-  const date = new Date(year, month - 1, day);
+  
+  let date;
+  
+  // Wenn es bereits ein Date-Objekt ist
+  if (dateValue instanceof Date) {
+    date = dateValue;
+  } 
+  // Wenn es ein String ist
+  else if (typeof dateValue === "string") {
+    // ISO-Format mit T: 2026-02-24T23:00:00.000Z
+    if (dateValue.includes('T')) {
+      date = new Date(dateValue);
+    } 
+    // Einfaches Format: 2026-02-25
+    else if (dateValue.includes('-')) {
+      const [year, month, day] = dateValue.split("-");
+      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    else {
+      date = new Date(dateValue);
+    }
+  }
+  else {
+    // Fallback
+    date = new Date(dateValue);
+  }
+  
   const weekday = weekdays[date.getDay()];
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
   return `${weekday}, ${day}.${month}.${year}`;
 }
 
@@ -136,6 +165,14 @@ function doGet(e) {
       
     case "admin_export_csv":
       return handleAdminExportCsv(e.parameter.admin_key);
+      
+    case "admin_update":
+      // Admin-Update: Checkboxen und Bezahldatum ändern
+      return handleAdminUpdate(e.parameter);
+      
+    case "admin_cancel":
+      // Admin-Stornierung
+      return handleAdminCancel(e.parameter);
       
     default:
       return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
@@ -271,15 +308,44 @@ function handleBook(payload) {
       return jsonResponse({ ok: false, message: "Ungültige Teilnehmeranzahl (1-8)" });
     }
     
-    // Slot prüfen
+    // Slot prüfen - flexible Datumssuche
     const slotsSheet = getSheet(SHEET_SLOTS);
     const slotsData = slotsSheet.getDataRange().getValues();
     
     let slotRowIndex = -1;
     let slotData = null;
     
+    // Hilfsfunktion: Datum-Teil aus ISO-String oder Date extrahieren (YYYY-MM-DD)
+    function extractDatePart(value) {
+      if (!value) return "";
+      // Wenn es ein Date-Objekt ist
+      if (value instanceof Date) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      // Wenn es ein String ist
+      const str = String(value);
+      // ISO-Format: 2026-02-24T23:00:00.000Z -> 2026-02-24
+      if (str.includes('T')) {
+        return str.split('T')[0];
+      }
+      // Bereits im Format YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        return str;
+      }
+      return str;
+    }
+    
+    const searchDate = extractDatePart(payload.slot_id);
+    console.log("Suche nach Datum:", searchDate);
+    
     for (let i = 1; i < slotsData.length; i++) {
-      if (slotsData[i][0] === payload.slot_id) {
+      const slotDatePart = extractDatePart(slotsData[i][0]);
+      
+      // Vergleiche Datum-Teile (ignoriere Zeitzone)
+      if (slotDatePart === searchDate) {
         slotRowIndex = i + 1; // 1-indexed für Sheet
         slotData = {
           slot_id: slotsData[i][0],
@@ -290,6 +356,7 @@ function handleBook(payload) {
           booked: slotsData[i][5],
           status: slotsData[i][6]
         };
+        console.log("Slot gefunden in Zeile:", slotRowIndex);
         break;
       }
     }
@@ -350,14 +417,23 @@ function handleBook(payload) {
       slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
     }
     
-    // E-Mails senden
-    sendBookingConfirmationEmail(bookingId, payload, slotData, cancelToken);
-    sendAdminNotificationEmail(bookingId, payload, slotData);
+    // E-Mails senden (optional - falls Gmail nicht aktiviert ist, wird trotzdem gebucht)
+    let emailSent = false;
+    try {
+      sendBookingConfirmationEmail(bookingId, payload, slotData, cancelToken);
+      sendAdminNotificationEmail(bookingId, payload, slotData);
+      emailSent = true;
+      console.log("E-Mails erfolgreich gesendet");
+    } catch (emailError) {
+      console.warn("E-Mail-Versand fehlgeschlagen (Gmail nicht aktiviert?):", emailError.message);
+      // Buchung ist trotzdem erfolgreich - nur E-Mail fehlt
+    }
     
     return jsonResponse({ 
       ok: true, 
       booking_id: bookingId,
-      message: "Buchung erfolgreich"
+      message: emailSent ? "Buchung erfolgreich" : "Buchung erfolgreich (ohne E-Mail-Bestätigung)",
+      email_sent: emailSent
     });
     
   } catch (error) {
@@ -502,7 +578,7 @@ function handleAdminBookings(adminKey) {
     });
   }
   
-  // Buchungen zusammenstellen
+  // Buchungen zusammenstellen (inkl. Admin-Felder)
   const bookings = [];
   for (let i = 1; i < bookingsData.length; i++) {
     const row = bookingsData[i];
@@ -516,7 +592,16 @@ function handleAdminBookings(adminKey) {
       participants_count: row[5],
       status: row[6],
       cancelled_at: row[8],
-      participants: participantsByBooking[bookingId] || []
+      // Neue Admin-Felder (Spalten 10-14, Index 9-13)
+      invoice_sent: row[9] === true || row[9] === "TRUE" || row[9] === "true",
+      appeared: row[10] === true || row[10] === "TRUE" || row[10] === "true",
+      membership_form: row[11] === true || row[11] === "TRUE" || row[11] === "true",
+      dsgvo_form: row[12] === true || row[12] === "TRUE" || row[12] === "true",
+      paid_date: row[13] || "",
+      // Teilnehmer
+      participants: participantsByBooking[bookingId] || [],
+      // Zeilennummer für Updates (1-indexed)
+      row_index: i + 1
     });
   }
   
@@ -597,6 +682,177 @@ function handleAdminExportCsv(adminKey) {
     .createTextOutput(csv)
     .setMimeType(ContentService.MimeType.CSV)
     .downloadAsFile("platzreife_buchungen.csv");
+}
+
+/**
+ * Admin: Buchung aktualisieren (Checkboxen, Bezahldatum)
+ */
+function handleAdminUpdate(params) {
+  const correctKey = getSetting("ADMIN_KEY");
+  
+  if (!params.admin_key || params.admin_key !== correctKey) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  
+  const bookingId = params.booking_id;
+  const field = params.field;
+  const value = params.value;
+  
+  if (!bookingId || !field) {
+    return jsonResponse({ ok: false, message: "Fehlende Parameter" });
+  }
+  
+  // Erlaubte Felder
+  const fieldMap = {
+    "invoice_sent": 10,      // Spalte J (10)
+    "appeared": 11,          // Spalte K (11)
+    "membership_form": 12,   // Spalte L (12)
+    "dsgvo_form": 13,        // Spalte M (13)
+    "paid_date": 14          // Spalte N (14)
+  };
+  
+  const colIndex = fieldMap[field];
+  if (!colIndex) {
+    return jsonResponse({ ok: false, message: "Ungültiges Feld: " + field });
+  }
+  
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    
+    const sheet = getSheet(SHEET_BOOKINGS);
+    const data = sheet.getDataRange().getValues();
+    
+    // Buchung finden
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === bookingId) {
+        rowIndex = i + 1; // 1-indexed
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
+    }
+    
+    // Wert setzen
+    let finalValue = value;
+    if (field !== "paid_date") {
+      // Boolean für Checkboxen
+      finalValue = (value === "true" || value === true);
+    }
+    
+    sheet.getRange(rowIndex, colIndex).setValue(finalValue);
+    
+    console.log(`Buchung ${bookingId}: ${field} = ${finalValue}`);
+    
+    return jsonResponse({ ok: true, message: "Aktualisiert", booking_id: bookingId, field: field, value: finalValue });
+    
+  } catch (error) {
+    console.error("Admin-Update Fehler:", error);
+    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Admin: Buchung stornieren
+ */
+function handleAdminCancel(params) {
+  const correctKey = getSetting("ADMIN_KEY");
+  
+  if (!params.admin_key || params.admin_key !== correctKey) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  
+  const bookingId = params.booking_id;
+  
+  if (!bookingId) {
+    return jsonResponse({ ok: false, message: "Keine Buchungs-ID angegeben" });
+  }
+  
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    
+    const sheet = getSheet(SHEET_BOOKINGS);
+    const data = sheet.getDataRange().getValues();
+    
+    // Buchung finden
+    let rowIndex = -1;
+    let currentStatus = "";
+    let slotId = "";
+    let participantCount = 0;
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === bookingId) {
+        rowIndex = i + 1;
+        currentStatus = data[i][6];
+        slotId = data[i][2];
+        participantCount = data[i][5];
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
+    }
+    
+    if (currentStatus === "CANCELLED") {
+      return jsonResponse({ ok: false, message: "Buchung bereits storniert" });
+    }
+    
+    // Status auf CANCELLED setzen
+    sheet.getRange(rowIndex, 7).setValue("CANCELLED");
+    sheet.getRange(rowIndex, 9).setValue(new Date().toISOString()); // cancelled_at
+    
+    // Slot-Zähler reduzieren
+    const slotsSheet = getSheet(SHEET_SLOTS);
+    const slotsData = slotsSheet.getDataRange().getValues();
+    
+    // Slot per Datum finden (flexible Suche)
+    function extractDatePart(value) {
+      if (!value) return "";
+      if (value instanceof Date) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const str = String(value);
+      if (str.includes('T')) return str.split('T')[0];
+      return str;
+    }
+    
+    const searchDate = extractDatePart(slotId);
+    
+    for (let i = 1; i < slotsData.length; i++) {
+      const slotDatePart = extractDatePart(slotsData[i][0]);
+      if (slotDatePart === searchDate) {
+        const currentBooked = slotsData[i][5] || 0;
+        const newBooked = Math.max(0, currentBooked - participantCount);
+        slotsSheet.getRange(i + 1, 6).setValue(newBooked);
+        
+        // Status wieder auf OPEN setzen falls vorher FULL
+        if (slotsData[i][6] === "FULL") {
+          slotsSheet.getRange(i + 1, 7).setValue("OPEN");
+        }
+        break;
+      }
+    }
+    
+    console.log(`Admin-Stornierung: ${bookingId}`);
+    
+    return jsonResponse({ ok: true, message: "Buchung storniert", booking_id: bookingId });
+    
+  } catch (error) {
+    console.error("Admin-Cancel Fehler:", error);
+    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -831,11 +1087,15 @@ function initSheets() {
     slotsSheet.appendRow(["slot_id", "date", "start", "end", "capacity", "booked", "status"]);
   }
   
-  // Bookings Sheet
+  // Bookings Sheet - mit Admin-Feldern
   let bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
   if (!bookingsSheet) {
     bookingsSheet = ss.insertSheet(SHEET_BOOKINGS);
-    bookingsSheet.appendRow(["booking_id", "timestamp", "slot_id", "contact_email", "contact_phone", "participants_count", "status", "cancel_token", "cancelled_at"]);
+    bookingsSheet.appendRow([
+      "booking_id", "timestamp", "slot_id", "contact_email", "contact_phone", 
+      "participants_count", "status", "cancel_token", "cancelled_at",
+      "invoice_sent", "appeared", "membership_form", "dsgvo_form", "paid_date"
+    ]);
   }
   
   // Participants Sheet
@@ -853,5 +1113,27 @@ function initSheets() {
   }
   
   console.log("Alle Sheets initialisiert!");
+}
+
+/**
+ * Bestehende Bookings Sheet um neue Admin-Spalten erweitern
+ * Einmalig ausführen für bestehende Sheets!
+ */
+function upgradeBookingsSheet() {
+  const sheet = getSheet(SHEET_BOOKINGS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  // Prüfen ob neue Spalten schon existieren
+  if (!headers.includes("invoice_sent")) {
+    const lastCol = sheet.getLastColumn();
+    sheet.getRange(1, lastCol + 1).setValue("invoice_sent");
+    sheet.getRange(1, lastCol + 2).setValue("appeared");
+    sheet.getRange(1, lastCol + 3).setValue("membership_form");
+    sheet.getRange(1, lastCol + 4).setValue("dsgvo_form");
+    sheet.getRange(1, lastCol + 5).setValue("paid_date");
+    console.log("Bookings Sheet um Admin-Spalten erweitert!");
+  } else {
+    console.log("Admin-Spalten bereits vorhanden.");
+  }
 }
 
