@@ -3,7 +3,7 @@
  * PLATZREIFE – Golfclub Metzenhof
  * Design basierend auf www.metzenhof.at/unser-golfplatz/
  * „mitanaund genießen"
- * Version: 4.1 (17.01.2026) – Responsive + Browser-Kompatibilität
+ * Version: 4.2 (17.01.2026) – Verbesserte Buchungsseite
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
@@ -1216,6 +1216,101 @@ button:disabled {
   color: var(--color-text-light);
 }
 
+/* Sortierbare Tabellen */
+.admin-table.sortable th {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+.admin-table.sortable th:hover {
+  background: var(--color-primary-faded);
+}
+
+.sortable-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+.sort-icon.active {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+/* Stornierte Zeilen */
+.row-cancelled {
+  opacity: 0.5;
+  background: rgba(196, 92, 92, 0.05);
+}
+
+.row-cancelled td {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-error);
+}
+
+.row-cancelled .status-badge {
+  text-decoration: none;
+}
+
+/* Teilnehmer-Tabelle */
+.participants-table td {
+  font-size: 0.8125rem;
+  padding: 0.75rem 0.5rem;
+}
+
+.participants-table .status-badge {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Zentrierter Text */
+.text-center {
+  text-align: center;
+}
+
+/* Teilnehmer-Anzahl Badge */
+.participant-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--color-primary-faded);
+  color: var(--color-primary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Tabellen-Zusammenfassung */
+.table-summary {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+/* Links in Tabellen */
+.admin-table a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.admin-table a:hover {
+  text-decoration: underline;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    LEGAL PAGES
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -1697,6 +1792,223 @@ a:focus-visible {
   font-size: 0.9375rem;
   color: var(--color-text-muted);
   margin-top: 0.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TERMIN-INFO CARD – Verbessert
+   ══════════════════════════════════════════════════════════════════════════════ */
+.selected-slot-info {
+  background: linear-gradient(135deg, var(--color-primary-faded) 0%, rgba(74, 140, 123, 0.05) 100%);
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.selected-slot-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+}
+
+.slot-info-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.slot-info-header {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.slot-info-date {
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 0.75rem;
+}
+
+.slot-info-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.slot-info-time .time-label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.slot-info-time .time-value {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.slot-info-free {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-success);
+  margin-bottom: 1rem;
+}
+
+.slot-info-free .free-warning {
+  color: var(--color-warning);
+}
+
+.slot-change-link {
+  display: inline-block;
+  font-size: 0.875rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.slot-change-link:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TEILNEHMER SECTIONS – Hervorgehoben
+   ══════════════════════════════════════════════════════════════════════════════ */
+.participants-count-section,
+.participants-data-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-icon {
+  font-size: 1.5rem;
+}
+
+.section-header h3 {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.section-description {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+/* Count Input mit +/- Buttons */
+.count-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 0.75rem;
+}
+
+.count-btn {
+  width: 50px;
+  height: 50px;
+  border: 2px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.count-btn.count-minus {
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.count-btn.count-plus {
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.count-btn:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+}
+
+.count-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.count-input-wrapper input[type="number"] {
+  width: 80px;
+  height: 50px;
+  border: 2px solid var(--color-primary);
+  border-left: none;
+  border-right: none;
+  background: var(--color-primary-faded);
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+
+.count-input-wrapper input[type="number"]:focus {
+  outline: none;
+}
+
+.count-hint {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+/* Participants Data Section – Extra Styling */
+.participants-data-section {
+  background: linear-gradient(180deg, var(--color-bg-light) 0%, var(--color-bg-card) 100%);
+  border-color: var(--color-border-light);
 }
 
 /* Termin-Karten klickbar */

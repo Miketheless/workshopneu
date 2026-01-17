@@ -130,16 +130,38 @@ function doGet(e) {
 
 /**
  * HTTP POST Handler
+ * Unterstützt sowohl application/json als auch text/plain (für CORS)
  */
 function doPost(e) {
-  const action = e.parameter.action;
-  
-  if (action === "book") {
-    const payload = JSON.parse(e.postData.contents);
-    return handleBook(payload);
+  try {
+    const action = e.parameter.action;
+    
+    if (action === "book") {
+      // Payload parsen (funktioniert für beide Content-Types)
+      let payload;
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (parseError) {
+        return jsonResponse({ 
+          ok: false, 
+          success: false,
+          error: "Ungültige Anfrage-Daten" 
+        });
+      }
+      
+      return handleBook(payload);
+    }
+    
+    return jsonResponse({ ok: false, success: false, message: "Unbekannte Aktion" });
+    
+  } catch (error) {
+    console.error("doPost Fehler:", error);
+    return jsonResponse({ 
+      ok: false, 
+      success: false, 
+      error: "Server-Fehler: " + error.message 
+    });
   }
-  
-  return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

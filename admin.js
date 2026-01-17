@@ -1,7 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * PLATZREIFE – Admin JavaScript
- * Golfclub Metzenhof – Version 3.0 (17.01.2026)
+ * Golfclub Metzenhof – Version 4.2 (17.01.2026)
+ * Neu: Teilnehmertabelle + Sortierbare Spalten
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -9,7 +10,6 @@
 // KONFIGURATION
 // ══════════════════════════════════════════════════════════════
 
-// WICHTIG: Hier die URL des Google Apps Script Web App eintragen!
 const API_BASE = "https://script.google.com/macros/s/AKfycbzeT3syS3BN25_HR9QJ-qzHETYSTyz_Z61KxvIa8K0nr5b8XzIGr6A-FwyERn_DU3Dl_A/exec";
 
 // ══════════════════════════════════════════════════════════════
@@ -28,7 +28,8 @@ const elements = {
   statConfirmed: document.getElementById("stat-confirmed"),
   statCancelled: document.getElementById("stat-cancelled"),
   statParticipants: document.getElementById("stat-participants"),
-  bookingsContainer: document.getElementById("bookings-container")
+  bookingsContainer: document.getElementById("bookings-container"),
+  participantsContainer: document.getElementById("participants-container")
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -38,17 +39,37 @@ const elements = {
 let currentAdminKey = "";
 let bookingsData = [];
 
+// Sortierung
+let bookingsSortColumn = "timestamp";
+let bookingsSortDir = "desc";
+let participantsSortColumn = "booking_id";
+let participantsSortDir = "asc";
+
 // ══════════════════════════════════════════════════════════════
 // HILFSFUNKTIONEN
 // ══════════════════════════════════════════════════════════════
 
 /**
- * Datum formatieren: "2026-02-25" → "25.02.2026"
+ * Datum formatieren: "2026-02-25" oder ISO → "25.02.2026"
  */
 function formatDate(dateStr) {
   if (!dateStr) return "–";
-  const [year, month, day] = dateStr.split("-");
-  return `${day}.${month}.${year}`;
+  
+  // ISO Format
+  if (dateStr.includes("T")) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("de-AT");
+  }
+  
+  // YYYY-MM-DD Format
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+  }
+  
+  return dateStr;
 }
 
 /**
@@ -74,21 +95,61 @@ function showLoginMessage(text, type = "") {
   elements.loginMessage.className = `message ${type}`;
 }
 
+/**
+ * Sortier-Icon generieren
+ */
+function getSortIcon(column, currentColumn, currentDir) {
+  if (column !== currentColumn) {
+    return '<span class="sort-icon">⇅</span>';
+  }
+  return currentDir === "asc" 
+    ? '<span class="sort-icon active">↑</span>' 
+    : '<span class="sort-icon active">↓</span>';
+}
+
+/**
+ * Generische Sortierfunktion
+ */
+function sortData(data, column, direction) {
+  return [...data].sort((a, b) => {
+    let valA = a[column];
+    let valB = b[column];
+    
+    // Null/undefined handling
+    if (valA == null) valA = "";
+    if (valB == null) valB = "";
+    
+    // Datum/Timestamp erkennen
+    if (column === "timestamp" || column === "cancelled_at" || column === "slot_id") {
+      valA = new Date(valA || 0).getTime();
+      valB = new Date(valB || 0).getTime();
+    }
+    // Zahlen
+    else if (column === "participants_count") {
+      valA = parseInt(valA) || 0;
+      valB = parseInt(valB) || 0;
+    }
+    // Strings
+    else {
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+    }
+    
+    if (valA < valB) return direction === "asc" ? -1 : 1;
+    if (valA > valB) return direction === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
 // ══════════════════════════════════════════════════════════════
 // API FUNKTIONEN
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Buchungen vom Backend laden
- */
 async function fetchBookings(adminKey) {
   const response = await fetch(`${API_BASE}?action=admin_bookings&admin_key=${encodeURIComponent(adminKey)}`);
   return await response.json();
 }
 
-/**
- * CSV Export URL generieren
- */
 function getExportUrl(adminKey) {
   return `${API_BASE}?action=admin_export_csv&admin_key=${encodeURIComponent(adminKey)}`;
 }
@@ -115,7 +176,7 @@ function renderStats() {
 }
 
 /**
- * Buchungstabelle rendern
+ * Buchungstabelle rendern (mit Sortierung)
  */
 function renderBookings() {
   if (bookingsData.length === 0) {
@@ -123,46 +184,44 @@ function renderBookings() {
     return;
   }
   
-  // Nach Datum sortieren (neueste zuerst)
-  const sorted = [...bookingsData].sort((a, b) => 
-    new Date(b.timestamp) - new Date(a.timestamp)
-  );
+  // Sortieren
+  const sorted = sortData(bookingsData, bookingsSortColumn, bookingsSortDir);
+  
+  const columns = [
+    { key: "booking_id", label: "Buchungs-ID" },
+    { key: "timestamp", label: "Buchungsdatum" },
+    { key: "slot_id", label: "Kurstermin" },
+    { key: "contact_email", label: "E-Mail" },
+    { key: "contact_phone", label: "Telefon" },
+    { key: "participants_count", label: "Teilnehmer" },
+    { key: "status", label: "Status" }
+  ];
   
   const tableHtml = `
-    <table class="admin-table">
+    <table class="admin-table sortable">
       <thead>
         <tr>
-          <th>Buchungs-ID</th>
-          <th>Datum</th>
-          <th>Termin</th>
-          <th>Kontakt</th>
-          <th>Teilnehmer</th>
-          <th>Status</th>
+          ${columns.map(col => `
+            <th class="sortable-header" data-column="${col.key}" data-table="bookings">
+              ${col.label} ${getSortIcon(col.key, bookingsSortColumn, bookingsSortDir)}
+            </th>
+          `).join("")}
         </tr>
       </thead>
       <tbody>
         ${sorted.map(booking => `
-          <tr>
+          <tr class="${booking.status === "CANCELLED" ? "row-cancelled" : ""}">
             <td><strong>${booking.booking_id || "–"}</strong></td>
             <td>${formatTimestamp(booking.timestamp)}</td>
             <td>${formatDate(booking.slot_id)}</td>
-            <td>
-              ${booking.contact_email || "–"}<br>
-              <small class="text-muted">${booking.contact_phone || "–"}</small>
-            </td>
-            <td>
-              ${booking.participants_count || 0}
-              ${booking.participants && booking.participants.length > 0 ? `
-                <div class="participants-list">
-                  ${booking.participants.map(p => 
-                    `${p.first_name} ${p.last_name}`
-                  ).join("<br>")}
-                </div>
-              ` : ""}
+            <td><a href="mailto:${booking.contact_email}">${booking.contact_email || "–"}</a></td>
+            <td><a href="tel:${booking.contact_phone}">${booking.contact_phone || "–"}</a></td>
+            <td class="text-center">
+              <span class="participant-count">${booking.participants_count || 0}</span>
             </td>
             <td>
               <span class="status-badge ${booking.status === "CONFIRMED" ? "confirmed" : "cancelled"}">
-                ${booking.status === "CONFIRMED" ? "Bestätigt" : "Storniert"}
+                ${booking.status === "CONFIRMED" ? "✓ Bestätigt" : "✕ Storniert"}
               </span>
               ${booking.cancelled_at ? `<br><small class="text-muted">${formatTimestamp(booking.cancelled_at)}</small>` : ""}
             </td>
@@ -173,15 +232,143 @@ function renderBookings() {
   `;
   
   elements.bookingsContainer.innerHTML = tableHtml;
+  
+  // Event Listener für Sortierung
+  attachSortListeners("bookings");
+}
+
+/**
+ * Teilnehmertabelle rendern (mit Sortierung)
+ */
+function renderParticipants() {
+  // Alle Teilnehmer aus allen Buchungen extrahieren
+  const allParticipants = [];
+  
+  bookingsData.forEach(booking => {
+    if (booking.participants && Array.isArray(booking.participants)) {
+      booking.participants.forEach((p, idx) => {
+        allParticipants.push({
+          booking_id: booking.booking_id,
+          booking_status: booking.status,
+          slot_id: booking.slot_id,
+          contact_email: booking.contact_email,
+          contact_phone: booking.contact_phone,
+          participant_nr: idx + 1,
+          first_name: p.first_name || "",
+          last_name: p.last_name || "",
+          street: p.street || "",
+          house_no: p.house_no || "",
+          zip: p.zip || "",
+          city: p.city || "",
+          full_name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+          full_address: `${p.street || ""} ${p.house_no || ""}, ${p.zip || ""} ${p.city || ""}`.trim()
+        });
+      });
+    }
+  });
+  
+  if (allParticipants.length === 0) {
+    elements.participantsContainer.innerHTML = '<p class="text-muted">Keine Teilnehmer vorhanden.</p>';
+    return;
+  }
+  
+  // Sortieren
+  const sorted = sortData(allParticipants, participantsSortColumn, participantsSortDir);
+  
+  const columns = [
+    { key: "booking_id", label: "Buchungs-ID" },
+    { key: "slot_id", label: "Kurstermin" },
+    { key: "participant_nr", label: "Nr." },
+    { key: "first_name", label: "Vorname" },
+    { key: "last_name", label: "Nachname" },
+    { key: "street", label: "Straße" },
+    { key: "house_no", label: "Nr." },
+    { key: "zip", label: "PLZ" },
+    { key: "city", label: "Ort" },
+    { key: "booking_status", label: "Status" }
+  ];
+  
+  const tableHtml = `
+    <table class="admin-table sortable participants-table">
+      <thead>
+        <tr>
+          ${columns.map(col => `
+            <th class="sortable-header" data-column="${col.key}" data-table="participants">
+              ${col.label} ${getSortIcon(col.key, participantsSortColumn, participantsSortDir)}
+            </th>
+          `).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(p => `
+          <tr class="${p.booking_status === "CANCELLED" ? "row-cancelled" : ""}">
+            <td><small>${p.booking_id || "–"}</small></td>
+            <td>${formatDate(p.slot_id)}</td>
+            <td class="text-center">${p.participant_nr}</td>
+            <td><strong>${p.first_name || "–"}</strong></td>
+            <td><strong>${p.last_name || "–"}</strong></td>
+            <td>${p.street || "–"}</td>
+            <td>${p.house_no || "–"}</td>
+            <td>${p.zip || "–"}</td>
+            <td>${p.city || "–"}</td>
+            <td>
+              <span class="status-badge ${p.booking_status === "CONFIRMED" ? "confirmed" : "cancelled"}">
+                ${p.booking_status === "CONFIRMED" ? "✓" : "✕"}
+              </span>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+    <p class="table-summary">
+      Gesamt: <strong>${allParticipants.length}</strong> Teilnehmer 
+      (${allParticipants.filter(p => p.booking_status === "CONFIRMED").length} bestätigt, 
+      ${allParticipants.filter(p => p.booking_status === "CANCELLED").length} storniert)
+    </p>
+  `;
+  
+  elements.participantsContainer.innerHTML = tableHtml;
+  
+  // Event Listener für Sortierung
+  attachSortListeners("participants");
+}
+
+/**
+ * Event Listener für sortierbare Spalten
+ */
+function attachSortListeners(tableType) {
+  const headers = document.querySelectorAll(`.sortable-header[data-table="${tableType}"]`);
+  
+  headers.forEach(header => {
+    header.addEventListener("click", () => {
+      const column = header.dataset.column;
+      
+      if (tableType === "bookings") {
+        // Toggle Richtung wenn gleiche Spalte
+        if (bookingsSortColumn === column) {
+          bookingsSortDir = bookingsSortDir === "asc" ? "desc" : "asc";
+        } else {
+          bookingsSortColumn = column;
+          bookingsSortDir = "asc";
+        }
+        renderBookings();
+      } else {
+        if (participantsSortColumn === column) {
+          participantsSortDir = participantsSortDir === "asc" ? "desc" : "asc";
+        } else {
+          participantsSortColumn = column;
+          participantsSortDir = "asc";
+        }
+        renderParticipants();
+      }
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
 // EVENT HANDLER
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Login
- */
 async function handleLogin() {
   const key = elements.adminKey.value.trim();
   if (!key) {
@@ -207,6 +394,7 @@ async function handleLogin() {
       // Daten anzeigen
       renderStats();
       renderBookings();
+      renderParticipants();
     } else {
       showLoginMessage(result.message || "Ungültiger Admin-Schlüssel.", "error");
       elements.loginBtn.disabled = false;
@@ -220,9 +408,6 @@ async function handleLogin() {
   }
 }
 
-/**
- * Daten aktualisieren
- */
 async function handleRefresh() {
   elements.refreshBtn.disabled = true;
   elements.refreshBtn.textContent = "Lädt...";
@@ -234,6 +419,7 @@ async function handleRefresh() {
       bookingsData = result.bookings || [];
       renderStats();
       renderBookings();
+      renderParticipants();
     }
   } catch (error) {
     console.error("Refresh-Fehler:", error);
@@ -243,9 +429,6 @@ async function handleRefresh() {
   elements.refreshBtn.textContent = "Daten aktualisieren";
 }
 
-/**
- * CSV Export
- */
 function handleExport() {
   const url = getExportUrl(currentAdminKey);
   window.open(url, "_blank");
@@ -259,3 +442,4 @@ elements.adminKey.addEventListener("keypress", (e) => {
 elements.refreshBtn.addEventListener("click", handleRefresh);
 elements.exportBtn.addEventListener("click", handleExport);
 
+console.log("🔐 Admin Panel v4.2 geladen");

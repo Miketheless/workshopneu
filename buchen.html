@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Platzreife Buchungsformular – Golfclub Metzenhof – v4.0 (17.01.2026) -->
+<!-- Platzreife Buchungsformular – Golfclub Metzenhof – v4.2 (17.01.2026) -->
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -48,22 +48,41 @@
       
       <!-- Termin-Anzeige (nicht editierbar) -->
       <div class="selected-slot-info" id="slot-info-card">
-        <div class="slot-info-header">Gewählter Termin</div>
+        <div class="slot-info-icon">📅</div>
+        <div class="slot-info-header">Dein gewählter Kurstermin</div>
         <div class="slot-info-date" id="slot-info-date">–</div>
-        <div class="slot-info-time" id="slot-info-time">09:00–15:00 Uhr</div>
+        <div class="slot-info-time" id="slot-info-time">
+          <span class="time-label">Kurszeit:</span>
+          <span class="time-value">09:00 Uhr bis 15:00 Uhr</span>
+        </div>
         <div class="slot-info-free" id="slot-info-free">– Plätze frei</div>
-        <a href="index.html" class="slot-change-link">Anderen Termin wählen</a>
+        <a href="index.html" class="slot-change-link">← Anderen Termin wählen</a>
       </div>
       
-      <!-- Teilnehmeranzahl -->
-      <label for="participants_count">
-        Anzahl Teilnehmer (1–8)
-        <input type="number" id="participants_count" name="participants_count" min="1" max="8" value="1" required>
-      </label>
+      <!-- Teilnehmeranzahl – Hervorgehoben -->
+      <div class="participants-count-section">
+        <div class="section-header">
+          <span class="section-icon">👥</span>
+          <h3>Wie viele Teilnehmer?</h3>
+        </div>
+        <p class="section-description">Wähle die Anzahl der Personen, die am Kurs teilnehmen möchten.</p>
+        <div class="count-input-wrapper">
+          <button type="button" class="count-btn count-minus" id="count-minus">−</button>
+          <input type="number" id="participants_count" name="participants_count" min="1" max="8" value="1" required readonly>
+          <button type="button" class="count-btn count-plus" id="count-plus">+</button>
+        </div>
+        <p class="count-hint">Maximal 8 Teilnehmer pro Termin</p>
+      </div>
       
-      <!-- Teilnehmerdaten -->
-      <h3>Teilnehmerdaten</h3>
-      <div id="participants"></div>
+      <!-- Teilnehmerdaten – Hervorgehoben -->
+      <div class="participants-data-section">
+        <div class="section-header">
+          <span class="section-icon">📝</span>
+          <h3>Teilnehmerdaten</h3>
+        </div>
+        <p class="section-description">Bitte gib die Daten aller Teilnehmer ein. Der erste Teilnehmer ist die Kontaktperson.</p>
+        <div id="participants"></div>
+      </div>
       
       <!-- Checkboxen -->
       <div class="checkbox-group">

@@ -1,7 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * PLATZREIFE BUCHUNGSSYSTEM – VERSION 4.1
- * Golfclub Metzenhof – 17.01.2026 – Fix: Deduplizierung + URL-Encoding
+ * PLATZREIFE BUCHUNGSSYSTEM – VERSION 4.2
+ * Golfclub Metzenhof – 17.01.2026 – Verbesserte Buchungsseite
  * 
  * Zwei-Seiten-System:
  * - index.html: Terminübersicht (klickbar → weiter zu buchen.html)
@@ -405,6 +405,20 @@ function showNoSlotError(message = null) {
 }
 
 /**
+ * Uhrzeit formatieren: "09:00" → "09:00 Uhr"
+ */
+function formatTime(timeStr) {
+  if (!timeStr) return "";
+  // Falls ISO-Format, nur Stunden:Minuten extrahieren
+  if (timeStr.includes("T")) {
+    const date = new Date(timeStr);
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")} Uhr`;
+  }
+  // Falls bereits "HH:MM" Format
+  return timeStr.includes("Uhr") ? timeStr : `${timeStr} Uhr`;
+}
+
+/**
  * Gewählten Termin anzeigen
  */
 function displaySelectedSlot() {
@@ -425,8 +439,26 @@ function displaySelectedSlot() {
   const hiddenInput = document.getElementById("slot_id");
   
   if (infoDate) infoDate.textContent = formatDateLong(selectedSlot.date);
-  if (infoTime) infoTime.textContent = `${selectedSlot.start}–${selectedSlot.end} Uhr`;
-  if (infoFree) infoFree.textContent = `${free} Plätze frei`;
+  
+  // Neues Uhrzeit-Format
+  if (infoTime) {
+    const startTime = formatTime(selectedSlot.start);
+    const endTime = formatTime(selectedSlot.end);
+    infoTime.innerHTML = `
+      <span class="time-label">Kurszeit:</span>
+      <span class="time-value">${startTime} bis ${endTime}</span>
+    `;
+  }
+  
+  // Freie Plätze mit Icon
+  if (infoFree) {
+    if (free <= 2) {
+      infoFree.innerHTML = `<span class="free-warning">⚠️ Nur noch ${free} ${free === 1 ? 'Platz' : 'Plätze'} frei!</span>`;
+    } else {
+      infoFree.textContent = `✓ ${free} Plätze frei`;
+    }
+  }
+  
   if (hiddenInput) hiddenInput.value = selectedSlot.id;
 }
 
@@ -435,16 +467,43 @@ function displaySelectedSlot() {
  */
 function setupBookingForm(maxParticipants) {
   const countInput = document.getElementById("participants_count");
+  const minusBtn = document.getElementById("count-minus");
+  const plusBtn = document.getElementById("count-plus");
+  
+  // Hilfsfunktion: Wert aktualisieren
+  function updateCount(newVal) {
+    const val = Math.max(1, Math.min(maxParticipants, newVal));
+    countInput.value = val;
+    renderParticipants(val);
+    
+    // Buttons aktivieren/deaktivieren
+    if (minusBtn) minusBtn.disabled = val <= 1;
+    if (plusBtn) plusBtn.disabled = val >= maxParticipants;
+  }
   
   if (countInput) {
     countInput.max = maxParticipants;
     countInput.value = 1;
     
+    // Minus Button
+    if (minusBtn) {
+      minusBtn.disabled = true; // Initial deaktiviert bei 1
+      minusBtn.addEventListener("click", () => {
+        updateCount(parseInt(countInput.value) - 1);
+      });
+    }
+    
+    // Plus Button
+    if (plusBtn) {
+      plusBtn.disabled = maxParticipants <= 1;
+      plusBtn.addEventListener("click", () => {
+        updateCount(parseInt(countInput.value) + 1);
+      });
+    }
+    
+    // Direkte Eingabe (falls readonly entfernt wird)
     countInput.addEventListener("input", (e) => {
-      let val = parseInt(e.target.value) || 1;
-      val = Math.max(1, Math.min(maxParticipants, val));
-      e.target.value = val;
-      renderParticipants(val);
+      updateCount(parseInt(e.target.value) || 1);
     });
   }
   
@@ -513,11 +572,11 @@ function renderParticipants(count) {
           <div class="form-row">
             <label>
               E-Mail *
-              <input type="email" name="contact_email" required>
+              <input type="email" name="contact_email" required placeholder="max.mustermann@email.at">
             </label>
             <label>
-              Telefon
-              <input type="tel" name="contact_phone">
+              Telefon *
+              <input type="tel" name="contact_phone" required placeholder="+43 664 1234567">
             </label>
           </div>
         ` : ""}
@@ -552,6 +611,7 @@ async function handleSubmit(e) {
     
     if (!slotId) throw new Error("Kein Termin gewählt.");
     if (!email) throw new Error("Bitte E-Mail eingeben.");
+    if (!phone) throw new Error("Bitte Telefonnummer eingeben.");
     
     const participants = [];
     for (let i = 0; i < count; i++) {
@@ -575,18 +635,50 @@ async function handleSubmit(e) {
     
     console.log("Sende Buchung:", payload);
     
-    const response = await fetch(`${CONFIG.API_URL}?action=book`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    // Google Apps Script mit Timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 Sekunden
     
-    const result = await response.json();
-    
-    if (result.success) {
-      showSuccess(result.booking_id, slotId, count, email);
-    } else {
-      throw new Error(result.error || "Buchung fehlgeschlagen.");
+    try {
+      const response = await fetch(`${CONFIG.API_URL}?action=book`, {
+        method: "POST",
+        mode: "cors",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: { 
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      clearTimeout(timeout);
+      
+      if (!response.ok) {
+        throw new Error(`Server-Fehler: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success || result.ok) {
+        showSuccess(result.booking_id, slotId, count, email);
+      } else {
+        throw new Error(result.error || result.message || "Buchung fehlgeschlagen.");
+      }
+      
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      
+      if (fetchError.name === "AbortError") {
+        throw new Error("Zeitüberschreitung. Bitte versuche es erneut.");
+      }
+      
+      // NetworkError bei CORS-Problemen
+      if (fetchError.message.includes("NetworkError") || fetchError.message.includes("Failed to fetch")) {
+        console.error("CORS/Netzwerk-Fehler:", fetchError);
+        throw new Error("Verbindungsfehler zum Server. Bitte prüfe deine Internetverbindung und versuche es erneut.");
+      }
+      
+      throw fetchError;
     }
     
   } catch (error) {
@@ -627,7 +719,7 @@ function showSuccess(bookingId, slotId, count, email) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function init() {
-  console.log("🏌️ Platzreife App v4.1 gestartet");
+  console.log("🏌️ Platzreife App v4.2 gestartet");
   
   // Slots laden
   allSlots = await fetchSlots();
