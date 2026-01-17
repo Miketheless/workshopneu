@@ -174,6 +174,14 @@ function doGet(e) {
       // Admin-Stornierung
       return handleAdminCancel(e.parameter);
       
+    case "admin_restore":
+      // Admin-Wiederherstellung (Stornierung rückgängig)
+      return handleAdminRestore(e.parameter);
+      
+    case "admin_add_booking":
+      // Admin: Neue Buchung hinzufügen
+      return handleAdminAddBooking(e.parameter);
+      
     default:
       return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
   }
@@ -852,6 +860,260 @@ function handleAdminCancel(params) {
     return jsonResponse({ ok: false, message: "Fehler: " + error.message });
   } finally {
     lock.releaseLock();
+  }
+}
+
+/**
+ * Admin: Stornierung rückgängig machen (Wiederherstellen)
+ */
+function handleAdminRestore(params) {
+  const correctKey = getSetting("ADMIN_KEY");
+  
+  if (!params.admin_key || params.admin_key !== correctKey) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  
+  const bookingId = params.booking_id;
+  
+  if (!bookingId) {
+    return jsonResponse({ ok: false, message: "Keine Buchungs-ID angegeben" });
+  }
+  
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    
+    const sheet = getSheet(SHEET_BOOKINGS);
+    const data = sheet.getDataRange().getValues();
+    
+    // Buchung finden
+    let rowIndex = -1;
+    let currentStatus = "";
+    let slotId = "";
+    let participantCount = 0;
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === bookingId) {
+        rowIndex = i + 1;
+        currentStatus = data[i][6];
+        slotId = data[i][2];
+        participantCount = data[i][5];
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
+    }
+    
+    if (currentStatus !== "CANCELLED") {
+      return jsonResponse({ ok: false, message: "Buchung ist nicht storniert" });
+    }
+    
+    // Prüfen ob Slot noch Platz hat
+    const slotsSheet = getSheet(SHEET_SLOTS);
+    const slotsData = slotsSheet.getDataRange().getValues();
+    
+    function extractDatePart(value) {
+      if (!value) return "";
+      if (value instanceof Date) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const str = String(value);
+      if (str.includes('T')) return str.split('T')[0];
+      return str;
+    }
+    
+    const searchDate = extractDatePart(slotId);
+    let slotRowIndex = -1;
+    let slotCapacity = 0;
+    let slotBooked = 0;
+    
+    for (let i = 1; i < slotsData.length; i++) {
+      const slotDatePart = extractDatePart(slotsData[i][0]);
+      if (slotDatePart === searchDate) {
+        slotRowIndex = i + 1;
+        slotCapacity = slotsData[i][4] || 8;
+        slotBooked = slotsData[i][5] || 0;
+        break;
+      }
+    }
+    
+    if (slotRowIndex === -1) {
+      return jsonResponse({ ok: false, message: "Termin nicht mehr vorhanden" });
+    }
+    
+    const freeSlots = slotCapacity - slotBooked;
+    if (participantCount > freeSlots) {
+      return jsonResponse({ ok: false, message: `Nur noch ${freeSlots} Plätze frei. Buchung hat ${participantCount} Teilnehmer.` });
+    }
+    
+    // Status auf CONFIRMED setzen
+    sheet.getRange(rowIndex, 7).setValue("CONFIRMED");
+    sheet.getRange(rowIndex, 9).setValue(""); // cancelled_at löschen
+    
+    // Slot-Zähler erhöhen
+    const newBooked = slotBooked + participantCount;
+    slotsSheet.getRange(slotRowIndex, 6).setValue(newBooked);
+    
+    // Falls voll, Status ändern
+    if (newBooked >= slotCapacity) {
+      slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
+    }
+    
+    console.log(`Admin-Wiederherstellung: ${bookingId}`);
+    
+    return jsonResponse({ ok: true, message: "Buchung wiederhergestellt", booking_id: bookingId });
+    
+  } catch (error) {
+    console.error("Admin-Restore Fehler:", error);
+    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Admin: Neue Buchung manuell hinzufügen
+ */
+function handleAdminAddBooking(params) {
+  const correctKey = getSetting("ADMIN_KEY");
+  
+  if (!params.admin_key || params.admin_key !== correctKey) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  
+  // Base64-kodierte Daten dekodieren
+  if (!params.data) {
+    return jsonResponse({ ok: false, message: "Keine Buchungsdaten übermittelt" });
+  }
+  
+  try {
+    const jsonString = Utilities.newBlob(Utilities.base64Decode(params.data)).getDataAsString("UTF-8");
+    const payload = JSON.parse(jsonString);
+    
+    // Validierung
+    if (!payload.slot_id) {
+      return jsonResponse({ ok: false, message: "Kein Termin ausgewählt" });
+    }
+    
+    if (!payload.participants || payload.participants.length === 0) {
+      return jsonResponse({ ok: false, message: "Keine Teilnehmer angegeben" });
+    }
+    
+    const participantCount = payload.participants.length;
+    
+    // Slot prüfen
+    const slotsSheet = getSheet(SHEET_SLOTS);
+    const slotsData = slotsSheet.getDataRange().getValues();
+    
+    function extractDatePart(value) {
+      if (!value) return "";
+      if (value instanceof Date) {
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, '0');
+        const d = String(value.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const str = String(value);
+      if (str.includes('T')) return str.split('T')[0];
+      return str;
+    }
+    
+    const searchDate = extractDatePart(payload.slot_id);
+    let slotRowIndex = -1;
+    let slotData = null;
+    
+    for (let i = 1; i < slotsData.length; i++) {
+      const slotDatePart = extractDatePart(slotsData[i][0]);
+      if (slotDatePart === searchDate) {
+        slotRowIndex = i + 1;
+        slotData = {
+          slot_id: slotsData[i][0],
+          capacity: slotsData[i][4] || 8,
+          booked: slotsData[i][5] || 0
+        };
+        break;
+      }
+    }
+    
+    if (!slotData) {
+      return jsonResponse({ ok: false, message: "Termin nicht gefunden" });
+    }
+    
+    const freeSlots = slotData.capacity - slotData.booked;
+    if (participantCount > freeSlots) {
+      return jsonResponse({ ok: false, message: `Nur noch ${freeSlots} Plätze verfügbar` });
+    }
+    
+    // Buchung erstellen
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    
+    try {
+      const bookingId = generateBookingId();
+      const timestamp = new Date().toISOString();
+      
+      // Booking eintragen (mit Admin-Markierung)
+      const bookingsSheet = getSheet(SHEET_BOOKINGS);
+      bookingsSheet.appendRow([
+        bookingId,
+        timestamp,
+        payload.slot_id,
+        payload.contact_email || "admin@metzenhof.at",
+        payload.contact_phone || "",
+        participantCount,
+        "CONFIRMED",
+        "", // cancel_token (leer bei Admin-Buchung)
+        "", // cancelled_at
+        false, // invoice_sent
+        false, // appeared
+        false, // membership_form
+        false, // dsgvo_form
+        ""     // paid_date
+      ]);
+      
+      // Participants eintragen
+      const participantsSheet = getSheet(SHEET_PARTICIPANTS);
+      payload.participants.forEach((p, idx) => {
+        participantsSheet.appendRow([
+          bookingId,
+          idx + 1,
+          p.first_name || "",
+          p.last_name || "",
+          p.street || "",
+          p.house_no || "",
+          p.zip || "",
+          p.city || ""
+        ]);
+      });
+      
+      // Slot-Zähler erhöhen
+      const newBooked = slotData.booked + participantCount;
+      slotsSheet.getRange(slotRowIndex, 6).setValue(newBooked);
+      
+      if (newBooked >= slotData.capacity) {
+        slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
+      }
+      
+      console.log(`Admin-Buchung erstellt: ${bookingId}`);
+      
+      return jsonResponse({ 
+        ok: true, 
+        booking_id: bookingId,
+        message: "Buchung erfolgreich erstellt"
+      });
+      
+    } finally {
+      lock.releaseLock();
+    }
+    
+  } catch (error) {
+    console.error("Admin-AddBooking Fehler:", error);
+    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
   }
 }
 

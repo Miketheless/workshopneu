@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Platzreife Admin – Golfclub Metzenhof – v5.0 (17.01.2026) -->
+<!-- Platzreife Admin – Golfclub Metzenhof – v5.1 (17.01.2026) -->
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -62,17 +62,18 @@
     
     .admin-table tbody tr.row-cancelled {
       background: #fff0f0;
-      color: #c00;
     }
     
     .admin-table tbody tr.row-cancelled td {
-      text-decoration: line-through;
-      opacity: 0.7;
+      color: #c00;
     }
     
-    .admin-table tbody tr.row-cancelled .status-badge,
-    .admin-table tbody tr.row-cancelled .btn-cancel {
+    .admin-table tbody tr.row-cancelled td.no-strike {
       text-decoration: none;
+    }
+    
+    .admin-table tbody tr.row-cancelled .name-cell {
+      text-decoration: line-through;
     }
     
     /* Checkboxen */
@@ -102,7 +103,7 @@
       cursor: not-allowed;
     }
     
-    /* Stornieren-Button */
+    /* Buttons */
     .btn-cancel {
       background: #dc3545;
       color: white;
@@ -118,7 +119,23 @@
       background: #c82333;
     }
     
-    .btn-cancel:disabled {
+    .btn-restore {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    
+    .btn-restore:hover {
+      background: #218838;
+    }
+    
+    .btn-cancel:disabled,
+    .btn-restore:disabled {
       background: #ccc;
       cursor: not-allowed;
     }
@@ -152,7 +169,7 @@
       opacity: 1;
     }
     
-    /* Compact Text */
+    /* Text Styles */
     .text-small {
       font-size: 0.75rem;
     }
@@ -207,6 +224,95 @@
       color: #666;
     }
     
+    /* Neue Buchung Formular */
+    .add-booking-form {
+      display: grid;
+      gap: 1rem;
+    }
+    
+    .add-booking-form .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .add-booking-form label {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    
+    .add-booking-form input,
+    .add-booking-form select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    
+    .add-booking-form .btn-add-participant {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    
+    .add-booking-form .btn-add-participant:hover {
+      background: #5a6268;
+    }
+    
+    .participant-entry {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      position: relative;
+    }
+    
+    .participant-entry .participant-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .participant-entry .btn-remove {
+      background: #dc3545;
+      color: white;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    
+    .collapsible-header {
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .collapsible-header:hover {
+      opacity: 0.8;
+    }
+    
+    .collapsible-content {
+      display: none;
+      margin-top: 1rem;
+    }
+    
+    .collapsible-content.open {
+      display: block;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
       .admin-table {
@@ -215,6 +321,9 @@
       .admin-table th,
       .admin-table td {
         padding: 0.4rem 0.3rem;
+      }
+      .add-booking-form .form-row {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -258,6 +367,47 @@
       <div class="btn-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <button type="button" id="refresh-btn">🔄 Aktualisieren</button>
         <button type="button" id="export-btn" class="btn-secondary">📥 CSV Export</button>
+        <button type="button" id="toggle-add-form" class="btn-secondary">➕ Neue Buchung</button>
+      </div>
+    </div>
+    
+    <!-- NEUE BUCHUNG FORMULAR (initial versteckt) -->
+    <div id="add-booking-section" class="card admin-card" style="margin-bottom: 1rem; display: none;">
+      <div class="collapsible-header" id="add-booking-header">
+        <h3 style="margin: 0;">➕ Neue Buchung hinzufügen</h3>
+        <span id="add-form-toggle-icon">▼</span>
+      </div>
+      <div class="collapsible-content open" id="add-booking-content">
+        <form class="add-booking-form" id="add-booking-form">
+          <div class="form-row">
+            <div>
+              <label for="new-slot">Termin *</label>
+              <select id="new-slot" required>
+                <option value="">Termin wählen...</option>
+              </select>
+            </div>
+            <div>
+              <label for="new-email">E-Mail</label>
+              <input type="email" id="new-email" placeholder="kontakt@email.at">
+            </div>
+            <div>
+              <label for="new-phone">Telefon</label>
+              <input type="tel" id="new-phone" placeholder="+43...">
+            </div>
+          </div>
+          
+          <h4 style="margin: 0.5rem 0;">Teilnehmer</h4>
+          <div id="participants-list">
+            <!-- Dynamische Teilnehmer-Einträge -->
+          </div>
+          
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" id="add-participant-btn" class="btn-add-participant">+ Teilnehmer hinzufügen</button>
+            <button type="submit" id="submit-booking-btn">✓ Buchung erstellen</button>
+          </div>
+          
+          <div id="add-booking-message" class="message" style="margin-top: 0.5rem;"></div>
+        </form>
       </div>
     </div>
     
@@ -285,7 +435,7 @@
     <div class="card admin-card">
       <div class="card-header" style="margin-bottom: 0.5rem;">
         <h2 style="font-size: 1.2rem;">📋 Alle Buchungen</h2>
-        <p class="text-muted text-small">Klicke auf Spaltenüberschriften zum Sortieren. Checkboxen und Bezahldatum werden sofort gespeichert.</p>
+        <p class="text-muted text-small">Checkboxen und Bezahldatum werden sofort gespeichert. Stornierte Buchungen können wiederhergestellt werden.</p>
       </div>
       
       <div id="bookings-container" class="admin-table-wrapper">
@@ -311,7 +461,7 @@
 
 <footer class="footer-simple" style="margin-top: 2rem;">
   <p><a href="index.html" style="color: rgba(255,255,255,0.9);">← Zurück zur Buchungsseite</a></p>
-  <p style="margin-top: 0.5rem; opacity: 0.6; font-size: 0.8rem;">© 2026 Golfclub Metzenhof – Admin v5.0</p>
+  <p style="margin-top: 0.5rem; opacity: 0.6; font-size: 0.8rem;">© 2026 Golfclub Metzenhof – Admin v5.1</p>
 </footer>
 
 <script src="admin.js"></script>
