@@ -314,7 +314,7 @@ function renderTermineGrid() {
       <div class="termin-card ${statusClass}" ${clickAttr} title="${isBookable ? 'Klicken zum Buchen' : 'Ausgebucht'}">
         <div class="termin-weekday">${WEEKDAYS_SHORT[dateObj.getDay()]}</div>
         <div class="termin-day">${p.day}</div>
-        <div class="termin-month">${MONTHS_SHORT[p.month - 1]} ${p.year}</div>
+        <div class="termin-month">${MONTHS[p.month - 1]} ${p.year}</div>
         <div class="termin-status">
           <span class="termin-status-icon">${statusIcon}</span>
           ${statusText}
