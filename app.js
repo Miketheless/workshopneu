@@ -1,7 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * PLATZREIFE BUCHUNGSSYSTEM – NEU PROGRAMMIERT
- * Golfclub Metzenhof – Version 3.1 (17.01.2026) – Erweiterte Datumserkennung
+ * PLATZREIFE BUCHUNGSSYSTEM – VERSION 4.0
+ * Golfclub Metzenhof – 17.01.2026
+ * 
+ * Zwei-Seiten-System:
+ * - index.html: Terminübersicht (klickbar → weiter zu buchen.html)
+ * - buchen.html: Buchungsformular mit vorausgewähltem Termin
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
@@ -10,15 +14,12 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  // Backend API URL
   API_URL: "https://script.google.com/macros/s/AKfycbzeT3syS3BN25_HR9QJ-qzHETYSTyz_Z61KxvIa8K0nr5b8XzIGr6A-FwyERn_DU3Dl_A/exec",
-  
-  // Kurs-Einstellungen
   MAX_PARTICIPANTS: 8,
   COURSE_START: "09:00",
   COURSE_END: "15:00",
   
-  // Feste Termine 2026
+  // Feste Termine 2026 (Fallback)
   DATES_2026: [
     "2026-02-25", "2026-02-28", "2026-03-04", "2026-03-07", "2026-03-11",
     "2026-03-14", "2026-03-18", "2026-03-21", "2026-03-25", "2026-03-28",
@@ -39,54 +40,35 @@ const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "A
 const MONTHS_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
 /**
- * Datum parsen - unterstützt viele Formate:
- * - YYYY-MM-DD (Standard)
- * - DD.MM.YYYY (Deutsch)
- * - YYYY-MM-DDTHH:mm:ss (ISO 8601)
- * - JavaScript Date Object
- * - Timestamp (Number)
+ * Datum parsen - unterstützt viele Formate
  */
 function parseDate(input) {
   if (!input) return null;
   
   let dateObj;
   
-  // Bereits ein Date-Objekt
   if (input instanceof Date) {
     dateObj = input;
-  }
-  // Timestamp (Zahl)
-  else if (typeof input === "number") {
+  } else if (typeof input === "number") {
     dateObj = new Date(input);
-  }
-  // String
-  else if (typeof input === "string") {
+  } else if (typeof input === "string") {
     const str = input.trim();
     
-    // ISO 8601 Format: 2026-02-25T00:00:00.000Z
     if (str.includes("T")) {
       dateObj = new Date(str);
-    }
-    // YYYY-MM-DD Format
-    else if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    } else if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const [y, m, d] = str.split("-").map(Number);
       return { year: y, month: m, day: d };
-    }
-    // DD.MM.YYYY Format
-    else if (str.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+    } else if (str.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
       const [d, m, y] = str.split(".").map(Number);
       return { year: y, month: m, day: d };
-    }
-    // Versuche als Date zu parsen
-    else {
+    } else {
       dateObj = new Date(str);
     }
-  }
-  else {
+  } else {
     return null;
   }
   
-  // Aus Date-Objekt extrahieren
   if (dateObj && !isNaN(dateObj.getTime())) {
     return {
       year: dateObj.getFullYear(),
@@ -101,13 +83,22 @@ function parseDate(input) {
 /**
  * Datum formatieren: "Mittwoch, 25.02.2026"
  */
-function formatDate(str) {
+function formatDateLong(str) {
   const p = parseDate(str);
   if (!p) return str;
   
   const date = new Date(p.year, p.month - 1, p.day);
   const wd = WEEKDAYS[date.getDay()];
   return `${wd}, ${String(p.day).padStart(2, "0")}.${String(p.month).padStart(2, "0")}.${p.year}`;
+}
+
+/**
+ * Datum formatieren kurz: "25.02.2026"
+ */
+function formatDateShort(str) {
+  const p = parseDate(str);
+  if (!p) return str;
+  return `${String(p.day).padStart(2, "0")}.${String(p.month).padStart(2, "0")}.${p.year}`;
 }
 
 /**
@@ -125,6 +116,14 @@ function isFuture(str) {
 }
 
 /**
+ * URL-Parameter auslesen
+ */
+function getUrlParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+/**
  * Nachricht anzeigen
  */
 function showMessage(text, type = "info") {
@@ -138,13 +137,6 @@ function showMessage(text, type = "info") {
   if (type !== "error") {
     setTimeout(() => { msgEl.style.display = "none"; }, 5000);
   }
-}
-
-/**
- * Zufällige Buchungs-ID generieren
- */
-function generateBookingId() {
-  return "PLR-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -192,39 +184,59 @@ async function fetchSlots() {
       return generateStaticSlots();
     }
     
+    // Prüfen ob zukünftige Termine vorhanden
+    const futureSlots = slots.filter(s => isFuture(s.date || s.slot_id));
+    if (futureSlots.length === 0) {
+      console.log("Keine zukünftigen Termine in API, verwende statische");
+      return generateStaticSlots();
+    }
+    
     return slots;
   } catch (e) {
-    console.log("API nicht erreichbar, verwende statische Termine:", e.message);
+    console.log("API nicht erreichbar:", e.message);
     return generateStaticSlots();
   }
 }
 
+/**
+ * Slot normalisieren
+ */
+function normalizeSlot(s) {
+  const dateStr = s.date || s.slot_id || "";
+  return {
+    id: s.slot_id || dateStr,
+    date: dateStr,
+    capacity: parseInt(s.capacity) || CONFIG.MAX_PARTICIPANTS,
+    booked: parseInt(s.booked) || 0,
+    start: s.start || CONFIG.COURSE_START,
+    end: s.end || CONFIG.COURSE_END
+  };
+}
+
+/**
+ * Slot nach ID finden
+ */
+function findSlotById(slotId) {
+  return allSlots.find(s => {
+    const normalized = normalizeSlot(s);
+    return normalized.id === slotId || normalized.date === slotId;
+  });
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
-// RENDERING
+// INDEX.HTML – TERMINÜBERSICHT
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Termine-Grid rendern
+ * Termine-Grid rendern (index.html)
  */
-function renderTermine() {
+function renderTermineGrid() {
   const container = document.getElementById("slots-container");
-  if (!container) {
-    console.error("slots-container nicht gefunden");
-    return;
-  }
+  if (!container) return;
   
   // Slots normalisieren und filtern
   const slots = allSlots
-    .map(s => {
-      const dateStr = s.date || s.slot_id || "";
-      return {
-        date: dateStr,
-        capacity: parseInt(s.capacity) || CONFIG.MAX_PARTICIPANTS,
-        booked: parseInt(s.booked) || 0,
-        start: s.start || CONFIG.COURSE_START,
-        end: s.end || CONFIG.COURSE_END
-      };
-    })
+    .map(normalizeSlot)
     .filter(s => s.date && isFuture(s.date))
     .sort((a, b) => {
       const pa = parseDate(a.date);
@@ -240,15 +252,16 @@ function renderTermine() {
     return;
   }
   
-  // HTML generieren
+  // HTML generieren – Klickbare Karten
   container.innerHTML = slots.map(slot => {
     const p = parseDate(slot.date);
     if (!p) return "";
     
     const free = slot.capacity - slot.booked;
     const dateObj = new Date(p.year, p.month - 1, p.day);
+    const isBookable = free > 0;
     
-    let statusClass = "";
+    let statusClass = "open";
     let statusIcon = "✓";
     let statusText = `${free} Plätze frei`;
     
@@ -262,8 +275,13 @@ function renderTermine() {
       statusText = `Nur ${free} frei`;
     }
     
+    // Klickbar nur wenn buchbar
+    const clickAttr = isBookable 
+      ? `onclick="selectSlot('${slot.id}')" style="cursor:pointer;"` 
+      : 'style="opacity:0.5; cursor:not-allowed;"';
+    
     return `
-      <div class="termin-card ${statusClass}">
+      <div class="termin-card ${statusClass}" ${clickAttr} title="${isBookable ? 'Klicken zum Buchen' : 'Ausgebucht'}">
         <div class="termin-weekday">${WEEKDAYS_SHORT[dateObj.getDay()]}</div>
         <div class="termin-day">${p.day}</div>
         <div class="termin-month">${MONTHS_SHORT[p.month - 1]} ${p.year}</div>
@@ -271,58 +289,146 @@ function renderTermine() {
           <span class="termin-status-icon">${statusIcon}</span>
           ${statusText}
         </div>
+        ${isBookable ? '<div class="termin-action">Jetzt buchen →</div>' : ''}
       </div>
     `;
   }).join("");
 }
 
 /**
- * Dropdown für Terminauswahl rendern
+ * Termin auswählen → Weiterleitung zur Buchungsseite
  */
-function renderDropdown() {
-  const select = document.getElementById("slot_id");
-  if (!select) {
-    console.error("slot_id nicht gefunden");
+function selectSlot(slotId) {
+  window.location.href = `buchen.html?slot=${encodeURIComponent(slotId)}`;
+}
+
+// Global verfügbar machen
+window.selectSlot = selectSlot;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BUCHEN.HTML – BUCHUNGSFORMULAR
+// ══════════════════════════════════════════════════════════════════════════════
+
+let selectedSlot = null;
+
+/**
+ * Buchungsseite initialisieren
+ */
+function initBookingPage() {
+  const slotId = getUrlParam("slot");
+  
+  if (!slotId) {
+    showNoSlotError();
     return;
   }
   
-  // Nur buchbare Slots
-  const bookable = allSlots
-    .map(s => {
-      const dateStr = s.date || s.slot_id || "";
-      return {
-        id: s.slot_id || dateStr,
-        date: dateStr,
-        capacity: parseInt(s.capacity) || CONFIG.MAX_PARTICIPANTS,
-        booked: parseInt(s.booked) || 0,
-        start: s.start || CONFIG.COURSE_START,
-        end: s.end || CONFIG.COURSE_END
+  // Slot finden
+  const rawSlot = findSlotById(slotId);
+  
+  if (!rawSlot) {
+    // Slot nicht in API gefunden – versuche als statischen Termin
+    if (isFuture(slotId)) {
+      selectedSlot = {
+        id: slotId,
+        date: slotId,
+        capacity: CONFIG.MAX_PARTICIPANTS,
+        booked: 0,
+        start: CONFIG.COURSE_START,
+        end: CONFIG.COURSE_END
       };
-    })
-    .filter(s => {
-      const free = s.capacity - s.booked;
-      return s.date && isFuture(s.date) && free > 0;
-    })
-    .sort((a, b) => {
-      const pa = parseDate(a.date);
-      const pb = parseDate(b.date);
-      if (!pa || !pb) return 0;
-      return new Date(pa.year, pa.month - 1, pa.day) - new Date(pb.year, pb.month - 1, pb.day);
+    } else {
+      showNoSlotError();
+      return;
+    }
+  } else {
+    selectedSlot = normalizeSlot(rawSlot);
+  }
+  
+  const free = selectedSlot.capacity - selectedSlot.booked;
+  
+  if (free <= 0) {
+    showNoSlotError("Dieser Termin ist leider ausgebucht.");
+    return;
+  }
+  
+  // UI anzeigen
+  displaySelectedSlot();
+  setupBookingForm(free);
+  renderParticipants(1);
+}
+
+/**
+ * Fehleranzeige wenn kein Slot gewählt
+ */
+function showNoSlotError(message = null) {
+  const formSection = document.querySelector(".booking-form-section");
+  const errorSection = document.getElementById("no-slot-section");
+  
+  if (formSection) formSection.style.display = "none";
+  if (errorSection) {
+    errorSection.style.display = "block";
+    if (message) {
+      const p = errorSection.querySelector("p");
+      if (p) p.textContent = message;
+    }
+  }
+}
+
+/**
+ * Gewählten Termin anzeigen
+ */
+function displaySelectedSlot() {
+  if (!selectedSlot) return;
+  
+  const free = selectedSlot.capacity - selectedSlot.booked;
+  
+  // Header Badge
+  const headerText = document.getElementById("selected-date-text");
+  if (headerText) {
+    headerText.textContent = formatDateLong(selectedSlot.date);
+  }
+  
+  // Info-Card im Formular
+  const infoDate = document.getElementById("slot-info-date");
+  const infoTime = document.getElementById("slot-info-time");
+  const infoFree = document.getElementById("slot-info-free");
+  const hiddenInput = document.getElementById("slot_id");
+  
+  if (infoDate) infoDate.textContent = formatDateLong(selectedSlot.date);
+  if (infoTime) infoTime.textContent = `${selectedSlot.start}–${selectedSlot.end} Uhr`;
+  if (infoFree) infoFree.textContent = `${free} Plätze frei`;
+  if (hiddenInput) hiddenInput.value = selectedSlot.id;
+}
+
+/**
+ * Buchungsformular Setup
+ */
+function setupBookingForm(maxParticipants) {
+  const countInput = document.getElementById("participants_count");
+  
+  if (countInput) {
+    countInput.max = maxParticipants;
+    countInput.value = 1;
+    
+    countInput.addEventListener("input", (e) => {
+      let val = parseInt(e.target.value) || 1;
+      val = Math.max(1, Math.min(maxParticipants, val));
+      e.target.value = val;
+      renderParticipants(val);
     });
+  }
   
-  console.log(`${bookable.length} buchbare Termine`);
+  const form = document.getElementById("booking-form");
+  if (form) {
+    form.addEventListener("submit", handleSubmit);
+  }
   
-  // Dropdown aufbauen
-  select.innerHTML = '<option value="">Bitte wählen...</option>';
-  
-  bookable.forEach(slot => {
-    const free = slot.capacity - slot.booked;
-    const option = document.createElement("option");
-    option.value = slot.id;
-    option.textContent = `${formatDate(slot.date)} · ${slot.start}–${slot.end} Uhr · ${free} frei`;
-    option.dataset.free = free;
-    select.appendChild(option);
-  });
+  const newBookingBtn = document.getElementById("new-booking");
+  if (newBookingBtn) {
+    newBookingBtn.addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+  }
 }
 
 /**
@@ -392,20 +498,8 @@ function renderParticipants(count) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BUCHUNG
+// BUCHUNG ABSENDEN
 // ══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Buchung absenden
- */
-async function submitBooking(payload) {
-  const response = await fetch(`${CONFIG.API_URL}?action=book`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return await response.json();
-}
 
 /**
  * Formular verarbeiten
@@ -417,26 +511,18 @@ async function handleSubmit(e) {
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
   
-  // Button deaktivieren
   btn.disabled = true;
   btn.textContent = "Wird gesendet...";
   
   try {
-    // Daten sammeln
     const slotId = formData.get("slot_id");
     const count = parseInt(formData.get("participants_count")) || 1;
     const email = formData.get("contact_email");
     const phone = formData.get("contact_phone") || "";
     
-    // Validierung
-    if (!slotId) {
-      throw new Error("Bitte wähle einen Termin aus.");
-    }
-    if (!email) {
-      throw new Error("Bitte gib deine E-Mail-Adresse ein.");
-    }
+    if (!slotId) throw new Error("Kein Termin gewählt.");
+    if (!email) throw new Error("Bitte E-Mail eingeben.");
     
-    // Teilnehmerdaten sammeln
     const participants = [];
     for (let i = 0; i < count; i++) {
       participants.push({
@@ -449,7 +535,6 @@ async function handleSubmit(e) {
       });
     }
     
-    // Payload
     const payload = {
       slot_id: slotId,
       contact_email: email,
@@ -460,11 +545,15 @@ async function handleSubmit(e) {
     
     console.log("Sende Buchung:", payload);
     
-    // An API senden
-    const result = await submitBooking(payload);
+    const response = await fetch(`${CONFIG.API_URL}?action=book`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
     
     if (result.success) {
-      // Erfolg anzeigen
       showSuccess(result.booking_id, slotId, count, email);
     } else {
       throw new Error(result.error || "Buchung fehlgeschlagen.");
@@ -481,28 +570,25 @@ async function handleSubmit(e) {
  * Erfolgsanzeige
  */
 function showSuccess(bookingId, slotId, count, email) {
-  // Formular ausblenden
   const formSection = document.querySelector(".booking-form-section");
+  const successSection = document.getElementById("success-section");
+  
   if (formSection) formSection.style.display = "none";
   
-  // Erfolg anzeigen
-  const successSection = document.getElementById("success-section");
   if (successSection) {
     successSection.style.display = "block";
     
-    // Werte eintragen
     const idEl = document.getElementById("success-id");
     const dateEl = document.getElementById("success-date");
     const countEl = document.getElementById("success-count");
     const emailEl = document.getElementById("success-email");
     
-    if (idEl) idEl.textContent = bookingId || generateBookingId();
-    if (dateEl) dateEl.textContent = formatDate(slotId);
+    if (idEl) idEl.textContent = bookingId || "–";
+    if (dateEl) dateEl.textContent = formatDateLong(slotId);
     if (countEl) countEl.textContent = count;
     if (emailEl) emailEl.textContent = email;
   }
   
-  // Nach oben scrollen
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -511,67 +597,25 @@ function showSuccess(bookingId, slotId, count, email) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function init() {
-  console.log("🏌️ Platzreife App v3.1 gestartet");
+  console.log("🏌️ Platzreife App v4.0 gestartet");
   
-  // 1. Slots laden
+  // Slots laden
   allSlots = await fetchSlots();
-  console.log(`${allSlots.length} Termine von API geladen`);
+  console.log(`${allSlots.length} Termine geladen`);
   
-  // Debug: Erstes Slot-Objekt anzeigen
+  // Debug
   if (allSlots.length > 0) {
-    console.log("Erster Slot (Debug):", JSON.stringify(allSlots[0]));
+    console.log("Erster Slot:", JSON.stringify(allSlots[0]));
   }
   
-  // 2. Prüfen ob zukünftige Termine vorhanden sind
-  const futureCount = allSlots.filter(s => {
-    const dateStr = s.date || s.slot_id || "";
-    return isFuture(dateStr);
-  }).length;
+  // Welche Seite?
+  const isBookingPage = window.location.pathname.includes("buchen.html");
   
-  console.log(`${futureCount} zukünftige Termine erkannt`);
-  
-  // 3. Fallback: Wenn keine zukünftigen Termine, statische verwenden
-  if (futureCount === 0) {
-    console.warn("⚠️ Keine zukünftigen Termine erkannt! Verwende statische Termine.");
-    allSlots = generateStaticSlots();
-    console.log(`Fallback: ${allSlots.length} statische Termine geladen`);
-  }
-  
-  // 4. UI rendern
-  renderTermine();
-  renderDropdown();
-  renderParticipants(1);
-  
-  // 3. Event Listener (nur wenn Elemente existieren)
-  const countInput = document.getElementById("participants_count");
-  if (countInput) {
-    countInput.addEventListener("input", (e) => {
-      let val = parseInt(e.target.value) || 1;
-      val = Math.max(1, Math.min(CONFIG.MAX_PARTICIPANTS, val));
-      
-      // Prüfen ob genug Plätze frei sind
-      const select = document.getElementById("slot_id");
-      if (select && select.value) {
-        const option = select.options[select.selectedIndex];
-        const free = parseInt(option.dataset.free) || CONFIG.MAX_PARTICIPANTS;
-        val = Math.min(val, free);
-      }
-      
-      e.target.value = val;
-      renderParticipants(val);
-    });
-  }
-  
-  const form = document.getElementById("booking-form");
-  if (form) {
-    form.addEventListener("submit", handleSubmit);
-  }
-  
-  const newBookingBtn = document.getElementById("new-booking");
-  if (newBookingBtn) {
-    newBookingBtn.addEventListener("click", () => {
-      location.reload();
-    });
+  if (isBookingPage) {
+    initBookingPage();
+  } else {
+    // Index/Terminübersicht
+    renderTermineGrid();
   }
   
   console.log("✓ App initialisiert");
