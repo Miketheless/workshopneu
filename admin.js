@@ -473,21 +473,22 @@ function renderBookings() {
   
   const sorted = sortData(bookingsData, bookingsSortColumn, bookingsSortDir);
   
+  // Spaltenbreiten in Prozent für bessere Browser-Kompatibilität
   const html = `
-    <table class="admin-table" style="table-layout: fixed; width: 100%;">
+    <table class="admin-table">
       <colgroup>
-        <col style="width: 85px;">
-        <col style="width: 85px;">
-        <col style="width: 180px;">
-        <col style="width: 100px;">
-        <col style="width: 40px;">
-        <col style="width: 55px;">
-        <col style="width: 55px;">
-        <col style="width: 55px;">
-        <col style="width: 55px;">
-        <col style="width: 110px;">
-        <col style="width: 75px;">
-        <col style="width: 80px;">
+        <col style="width: 9%;">  <!-- ID -->
+        <col style="width: 9%;">  <!-- Termin -->
+        <col style="width: 18%;"> <!-- E-Mail -->
+        <col style="width: 10%;"> <!-- Telefon -->
+        <col style="width: 4%;">  <!-- TN -->
+        <col style="width: 6%;">  <!-- Rechn. -->
+        <col style="width: 6%;">  <!-- Ersch. -->
+        <col style="width: 6%;">  <!-- Mitgl. -->
+        <col style="width: 6%;">  <!-- DSGVO -->
+        <col style="width: 11%;"> <!-- Bezahlt -->
+        <col style="width: 8%;">  <!-- Status -->
+        <col style="width: 7%;">  <!-- Aktion -->
       </colgroup>
       <thead>
         <tr>
@@ -495,11 +496,11 @@ function renderBookings() {
           <th class="sortable-header" data-column="slot_id" data-table="bookings">Termin ${getSortIcon("slot_id", bookingsSortColumn, bookingsSortDir)}</th>
           <th class="sortable-header" data-column="contact_email" data-table="bookings">E-Mail ${getSortIcon("contact_email", bookingsSortColumn, bookingsSortDir)}</th>
           <th class="sortable-header" data-column="contact_phone" data-table="bookings">Telefon ${getSortIcon("contact_phone", bookingsSortColumn, bookingsSortDir)}</th>
-          <th class="sortable-header" data-column="participants_count" data-table="bookings" style="text-align:center;">TN ${getSortIcon("participants_count", bookingsSortColumn, bookingsSortDir)}</th>
-          <th style="text-align:center;">Rechn.</th>
-          <th style="text-align:center;">Ersch.</th>
-          <th style="text-align:center;">Mitgl.</th>
-          <th style="text-align:center;">DSGVO</th>
+          <th class="sortable-header col-center" data-column="participants_count" data-table="bookings">TN ${getSortIcon("participants_count", bookingsSortColumn, bookingsSortDir)}</th>
+          <th class="no-sort col-center">Rechn.</th>
+          <th class="no-sort col-center">Ersch.</th>
+          <th class="no-sort col-center">Mitgl.</th>
+          <th class="no-sort col-center">DSGVO</th>
           <th class="sortable-header" data-column="paid_date" data-table="bookings">Bezahlt ${getSortIcon("paid_date", bookingsSortColumn, bookingsSortDir)}</th>
           <th class="sortable-header" data-column="status" data-table="bookings">Status ${getSortIcon("status", bookingsSortColumn, bookingsSortDir)}</th>
           <th class="no-sort">Aktion</th>
@@ -516,15 +517,15 @@ function renderBookings() {
           
           return `
             <tr class="${cancelled ? "row-cancelled" : ""}">
-              <td style="overflow:hidden; text-overflow:ellipsis;"><strong>${b.booking_id || "–"}</strong></td>
+              <td><strong>${b.booking_id || "–"}</strong></td>
               <td>${formatDate(b.slot_id)}</td>
-              <td style="overflow:hidden; text-overflow:ellipsis;"><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
-              <td style="overflow:hidden; text-overflow:ellipsis;">${b.contact_phone || "–"}</td>
-              <td style="text-align:center;">${b.participants_count || 0}</td>
-              <td style="text-align:center;"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="invoice_sent" ${b.invoice_sent ? "checked" : ""} ${disabled}></td>
-              <td style="text-align:center;"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="appeared" ${b.appeared ? "checked" : ""} ${disabled}></td>
-              <td style="text-align:center;"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="membership_form" ${b.membership_form ? "checked" : ""} ${disabled}></td>
-              <td style="text-align:center;"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="dsgvo_form" ${b.dsgvo_form ? "checked" : ""} ${disabled}></td>
+              <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
+              <td>${b.contact_phone || "–"}</td>
+              <td class="col-center">${b.participants_count || 0}</td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="invoice_sent" ${b.invoice_sent ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="appeared" ${b.appeared ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="membership_form" ${b.membership_form ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${b.booking_id}" data-field="dsgvo_form" ${b.dsgvo_form ? "checked" : ""} ${disabled}></td>
               <td><input type="date" class="admin-date" data-id="${b.booking_id}" data-field="paid_date" value="${paidVal}" ${disabled}></td>
               <td><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕ Storno" : "✓ OK"}</span></td>
               <td>
@@ -613,32 +614,33 @@ function renderParticipants() {
   
   const sorted = sortData(all, participantsSortColumn, participantsSortDir);
   
+  // Spaltenbreiten in Prozent für bessere Browser-Kompatibilität
   const html = `
-    <table class="admin-table" style="table-layout: fixed; width: 100%;">
+    <table class="admin-table">
       <colgroup>
-        <col style="width: 90px;">
-        <col style="width: 85px;">
-        <col style="width: 40px;">
-        <col style="width: 100px;">
-        <col style="width: 100px;">
-        <col style="width: 120px;">
-        <col style="width: 45px;">
-        <col style="width: 55px;">
-        <col style="width: 100px;">
-        <col style="width: 60px;">
+        <col style="width: 11%;"> <!-- Buchung -->
+        <col style="width: 10%;"> <!-- Termin -->
+        <col style="width: 5%;">  <!-- Nr. -->
+        <col style="width: 12%;"> <!-- Vorname -->
+        <col style="width: 12%;"> <!-- Nachname -->
+        <col style="width: 18%;"> <!-- Straße -->
+        <col style="width: 5%;">  <!-- Nr. -->
+        <col style="width: 7%;">  <!-- PLZ -->
+        <col style="width: 14%;"> <!-- Ort -->
+        <col style="width: 6%;">  <!-- Status -->
       </colgroup>
       <thead>
         <tr>
           <th class="sortable-header" data-column="booking_id" data-table="participants">Buchung ${getSortIcon("booking_id", participantsSortColumn, participantsSortDir)}</th>
           <th class="sortable-header" data-column="slot_id" data-table="participants">Termin ${getSortIcon("slot_id", participantsSortColumn, participantsSortDir)}</th>
-          <th class="sortable-header" data-column="participant_nr" data-table="participants" style="text-align:center;">Nr. ${getSortIcon("participant_nr", participantsSortColumn, participantsSortDir)}</th>
+          <th class="sortable-header col-center" data-column="participant_nr" data-table="participants">Nr. ${getSortIcon("participant_nr", participantsSortColumn, participantsSortDir)}</th>
           <th class="sortable-header" data-column="first_name" data-table="participants">Vorname ${getSortIcon("first_name", participantsSortColumn, participantsSortDir)}</th>
           <th class="sortable-header" data-column="last_name" data-table="participants">Nachname ${getSortIcon("last_name", participantsSortColumn, participantsSortDir)}</th>
-          <th>Straße</th>
-          <th style="text-align:center;">Nr.</th>
-          <th style="text-align:center;">PLZ</th>
-          <th>Ort</th>
-          <th style="text-align:center;">Status</th>
+          <th class="no-sort">Straße</th>
+          <th class="no-sort col-center">Nr.</th>
+          <th class="no-sort col-center">PLZ</th>
+          <th class="no-sort">Ort</th>
+          <th class="no-sort col-center">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -646,16 +648,16 @@ function renderParticipants() {
           const cancelled = p.booking_status === "CANCELLED";
           return `
             <tr class="${cancelled ? "row-cancelled" : ""}">
-              <td style="overflow:hidden; text-overflow:ellipsis;">${p.booking_id}</td>
+              <td>${p.booking_id}</td>
               <td>${formatDate(p.slot_id)}</td>
-              <td style="text-align:center;">${p.participant_nr}</td>
-              <td class="name-cell" style="overflow:hidden; text-overflow:ellipsis;"><strong>${p.first_name}</strong></td>
-              <td class="name-cell" style="overflow:hidden; text-overflow:ellipsis;"><strong>${p.last_name}</strong></td>
-              <td style="overflow:hidden; text-overflow:ellipsis;">${p.street || "–"}</td>
-              <td style="text-align:center;">${p.house_no || "–"}</td>
-              <td style="text-align:center;">${p.zip || "–"}</td>
-              <td style="overflow:hidden; text-overflow:ellipsis;">${p.city || "–"}</td>
-              <td style="text-align:center;"><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕" : "✓"}</span></td>
+              <td class="col-center">${p.participant_nr}</td>
+              <td class="name-cell"><strong>${p.first_name}</strong></td>
+              <td class="name-cell"><strong>${p.last_name}</strong></td>
+              <td>${p.street || "–"}</td>
+              <td class="col-center">${p.house_no || "–"}</td>
+              <td class="col-center">${p.zip || "–"}</td>
+              <td>${p.city || "–"}</td>
+              <td class="col-center"><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕" : "✓"}</span></td>
             </tr>
           `;
         }).join("")}

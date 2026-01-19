@@ -302,24 +302,45 @@ function handleGetSlots() {
   const slots = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
+    
+    // Datum als YYYY-MM-DD String formatieren (lokale Zeitzone)
+    const dateId = extractSlotDateId(row[0]);
+    
     const slot = {
-      slot_id: row[0],
-      date: row[1],
-      start: row[2],
-      end: row[3],
-      capacity: row[4],
-      booked: row[5],
-      status: row[6]
+      slot_id: dateId,           // Als String, nicht als Date
+      date: dateId,              // Als String, nicht als Date
+      date_display: formatDateDisplay(row[0]),  // Für Anzeige
+      start: "09:00",
+      end: "15:00",
+      capacity: row[4] || 8,
+      booked: row[5] || 0,
+      status: row[6] || "OPEN"
     };
     
     // Nur offene Slots
-    if (slot.status === "OPEN") {
+    if (slot.status === "OPEN" || slot.status !== "FULL") {
       slot.free = slot.capacity - slot.booked;
-      slots.push(slot);
+      if (slot.free > 0) {
+        slots.push(slot);
+      }
     }
   }
   
   return jsonResponse({ ok: true, slots: slots });
+}
+
+/**
+ * Datum für Anzeige formatieren (DD.MM.YYYY)
+ */
+function formatDateDisplay(value) {
+  if (!value) return "";
+  if (value instanceof Date) {
+    const d = String(value.getDate()).padStart(2, '0');
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const y = value.getFullYear();
+    return `${d}.${m}.${y}`;
+  }
+  return extractSlotDateId(value);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -22,9 +22,11 @@
     
     .admin-table {
       width: 100%;
+      min-width: 900px;
       border-collapse: collapse;
       border-spacing: 0;
       font-size: 0.8rem;
+      table-layout: fixed;
     }
     
     .admin-table th,
@@ -34,6 +36,9 @@
       border-bottom: 1px solid #e0e0e0;
       vertical-align: middle;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
     }
     
     .admin-table th {
@@ -45,6 +50,9 @@
       user-select: none;
       -moz-user-select: none;
       -webkit-user-select: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
     
     .admin-table th:hover {
@@ -57,6 +65,12 @@
     
     .admin-table th.no-sort:hover {
       background: #4a8c7b;
+    }
+    
+    /* Zentrierte Spalten */
+    .admin-table th.col-center,
+    .admin-table td.col-center {
+      text-align: center;
     }
     
     .admin-table tbody tr:hover {
