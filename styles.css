@@ -694,22 +694,27 @@ a:hover {
 
 /* Status: Ausgebucht */
 .termin-card.full {
-  opacity: 0.6;
+  background: #fef5f5;
+  border-color: #e0b0b0;
+  opacity: 0.9;
+  cursor: not-allowed !important;
 }
 
 .termin-card.full .termin-status {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--color-text-muted);
+  background: rgba(196, 92, 92, 0.1);
+  color: #c45c5c;
 }
 
 .termin-card.full::before {
-  display: none;
+  background: #c45c5c;
+  transform: scaleX(1);
+  height: 3px;
 }
 
 .termin-card.full:hover {
-  transform: none;
-  box-shadow: none;
-  border-color: var(--color-border);
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #e0b0b0 !important;
 }
 
 /* Responsive */
@@ -2156,11 +2161,14 @@ a:focus-visible {
 }
 
 .termin-card.full {
-  background: var(--color-bg);
+  background: #fef5f5;
+  border-color: #e8c4c4;
+  opacity: 0.85;
+  cursor: not-allowed !important;
 }
 
 .termin-card.full::before {
-  background: var(--color-text-muted);
+  background: #c45c5c;
 }
 
 .termin-weekday {
@@ -2182,7 +2190,15 @@ a:focus-visible {
 }
 
 .termin-card.full .termin-day {
-  color: var(--color-text-muted);
+  color: #a07070;
+}
+
+.termin-card.full .termin-weekday {
+  color: #a07070;
+}
+
+.termin-card.full .termin-date {
+  color: #a07070;
 }
 
 .termin-month {
@@ -2773,7 +2789,15 @@ a:focus-visible {
 }
 
 .termin-card.full {
-  background: #fafafa;
+  background: #fef5f5;
+  border-color: #e0b0b0;
+  cursor: not-allowed !important;
+}
+
+.termin-card.full:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #e0b0b0 !important;
 }
 
 .termin-datum {
@@ -2828,7 +2852,17 @@ a:focus-visible {
 }
 
 .info-text.status-full {
-  color: var(--color-error);
+  color: #c45c5c;
+  font-weight: 600;
+}
+
+/* Ausgebuchte Karte komplett */
+.termin-card.full .termin-details {
+  opacity: 0.8;
+}
+
+.termin-card.full .termin-verbindlich {
+  color: #a08080;
 }
 
 .termin-verbindlich {
@@ -2858,12 +2892,14 @@ a:focus-visible {
 }
 
 .termin-cta-disabled {
-  background: #e0e0e0;
-  color: #999;
+  background: #f5e0e0;
+  color: #a05050;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.9rem;
   text-align: center;
+  font-weight: 500;
+  border: 1px solid #e0c0c0;
 }
 
 /* Termine Error / Reload */

@@ -349,10 +349,10 @@ function renderTermineGrid() {
     // Klickbar nur wenn buchbar
     const clickAttr = isBookable 
       ? `onclick="selectSlot('${slot.id}')" style="cursor:pointer;"` 
-      : 'style="opacity:0.5; cursor:not-allowed;"';
+      : '';
     
     return `
-      <div class="termin-card ${statusClass}" ${clickAttr} title="${isBookable ? 'Termin auswählen' : 'Ausgebucht'}">
+      <div class="termin-card ${statusClass}" ${clickAttr} title="${isBookable ? 'Termin auswählen & weiter' : 'Dieser Termin ist leider ausgebucht'}">
         <div class="termin-datum">
           <div class="termin-weekday">${WEEKDAYS[dateObj.getDay()]}</div>
           <div class="termin-date">${String(p.day).padStart(2, "0")}.${String(p.month).padStart(2, "0")}.${p.year}</div>
