@@ -278,7 +278,18 @@ function renderTermineGrid() {
   console.log(`${slots.length} einzigartige zukünftige Termine`);
   
   if (slots.length === 0) {
-    container.innerHTML = '<div class="termine-empty">Aktuell keine Termine verfügbar.</div>';
+    container.innerHTML = `
+      <div class="termine-error">
+        <p class="error-text">Termine konnten nicht geladen werden.</p>
+        <button type="button" class="btn-reload" onclick="window.location.reload()">
+          🔄 Erneut laden
+        </button>
+        <p class="error-contact">
+          Wenn das Problem bleibt, kontaktiere uns: 
+          <a href="mailto:info@metzenhof.at">info@metzenhof.at</a>
+        </p>
+      </div>
+    `;
     return;
   }
   

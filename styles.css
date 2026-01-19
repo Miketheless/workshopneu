@@ -2518,29 +2518,84 @@ a:focus-visible {
 /* Paket-Info Section */
 .paket-info {
   background: var(--color-bg-card);
-  padding: 1.5rem 1rem;
+  padding: 2rem 1rem;
   border-bottom: 3px solid var(--color-primary);
 }
 
 .paket-content {
-  max-width: 900px;
+  max-width: 700px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  align-items: center;
 }
 
-@media (min-width: 768px) {
-  .paket-content {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+/* Preis-Hero (oben, zentriert, plakativ) */
+.paket-preis-hero {
+  text-align: center;
+  width: 100%;
+}
+
+.preis-badge-animated {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  padding: 1.5rem 3rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(74, 140, 123, 0.3);
+  animation: pulseSoft 2s ease-in-out infinite;
+}
+
+@keyframes pulseSoft {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 32px rgba(74, 140, 123, 0.3);
   }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 12px 40px rgba(74, 140, 123, 0.4);
+  }
+}
+
+.preis-hauptpreis {
+  font-family: var(--font-sans);
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.preis-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.preis-aufschluesselung {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.preis-trenner {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 /* Leistungsbox */
 .paket-leistungen {
-  flex: 1;
+  width: 100%;
+  max-width: 400px;
 }
 
 .paket-title {
@@ -2549,6 +2604,7 @@ a:focus-visible {
   font-weight: 600;
   color: var(--color-primary);
   margin: 0 0 0.75rem;
+  text-align: center;
 }
 
 .leistungen-liste {
@@ -2576,36 +2632,6 @@ a:focus-visible {
   text-decoration: line-through;
   color: var(--color-text-muted);
   font-size: 0.85em;
-}
-
-/* Preisblock */
-.paket-preis {
-  text-align: center;
-  background: linear-gradient(135deg, var(--color-primary-faded), rgba(74, 140, 123, 0.15));
-  padding: 1.25rem 2rem;
-  border-radius: 12px;
-  border: 2px solid var(--color-primary);
-}
-
-.preis-gross {
-  font-family: var(--font-sans);
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  line-height: 1;
-}
-
-.preis-erklaerung {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 0.25rem;
-}
-
-.preis-details {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  margin-top: 0.25rem;
 }
 
 /* Verbesserte Termin-Karten */
@@ -2719,6 +2745,48 @@ a:focus-visible {
   border-radius: 8px;
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* Termine Error / Reload */
+.termine-error {
+  text-align: center;
+  padding: 3rem 2rem;
+  grid-column: 1 / -1;
+}
+
+.termine-error .error-text {
+  font-size: 1.1rem;
+  color: var(--color-text);
+  margin: 0 0 1.5rem;
+}
+
+.btn-reload {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reload:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+}
+
+.termine-error .error-contact {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.termine-error .error-contact a {
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 /* Booking Hinweis */
