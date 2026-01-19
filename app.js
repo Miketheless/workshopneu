@@ -526,49 +526,11 @@ function displaySelectedSlot() {
 }
 
 /**
- * Buchungsformular Setup
+ * Buchungsformular Setup (Einzelbuchung - immer 1 Teilnehmer)
  */
 function setupBookingForm(maxParticipants) {
-  const countInput = document.getElementById("participants_count");
-  const minusBtn = document.getElementById("count-minus");
-  const plusBtn = document.getElementById("count-plus");
-  
-  // Hilfsfunktion: Wert aktualisieren
-  function updateCount(newVal) {
-    const val = Math.max(1, Math.min(maxParticipants, newVal));
-    countInput.value = val;
-    renderParticipants(val);
-    
-    // Buttons aktivieren/deaktivieren
-    if (minusBtn) minusBtn.disabled = val <= 1;
-    if (plusBtn) plusBtn.disabled = val >= maxParticipants;
-  }
-  
-  if (countInput) {
-    countInput.max = maxParticipants;
-    countInput.value = 1;
-    
-    // Minus Button
-    if (minusBtn) {
-      minusBtn.disabled = true; // Initial deaktiviert bei 1
-      minusBtn.addEventListener("click", () => {
-        updateCount(parseInt(countInput.value) - 1);
-      });
-    }
-    
-    // Plus Button
-    if (plusBtn) {
-      plusBtn.disabled = maxParticipants <= 1;
-      plusBtn.addEventListener("click", () => {
-        updateCount(parseInt(countInput.value) + 1);
-      });
-    }
-    
-    // Direkte Eingabe (falls readonly entfernt wird)
-    countInput.addEventListener("input", (e) => {
-      updateCount(parseInt(e.target.value) || 1);
-    });
-  }
+  // Immer 1 Teilnehmer - Teilnehmerfelder rendern
+  renderParticipants(1);
   
   const form = document.getElementById("booking-form");
   if (form) {
@@ -584,131 +546,83 @@ function setupBookingForm(maxParticipants) {
 }
 
 /**
- * Teilnehmerfelder rendern (DSGVO-minimal)
- * Kontaktperson: volle Daten inkl. Geburtsdatum
- * Weitere Teilnehmer: nur Name + optionales Geburtsdatum
+ * Teilnehmerfelder rendern (Einzelbuchung)
+ * Nur 1 Teilnehmer mit vollen Kontaktdaten
  */
 function renderParticipants(count) {
   const container = document.getElementById("participants");
   if (!container) return;
   
-  container.innerHTML = "";
-  
-  // Drittdaten-Checkbox ein-/ausblenden
-  const thirdPartyConsent = document.getElementById("third-party-consent");
-  if (thirdPartyConsent) {
-    thirdPartyConsent.style.display = count > 1 ? "block" : "none";
-    const checkbox = document.getElementById("third_party_consent");
-    if (checkbox) checkbox.required = count > 1;
-  }
-  
-  // Bestellübersicht aktualisieren
-  updateOrderSummary(count);
-  
-  for (let i = 0; i < count; i++) {
-    const isFirst = i === 0;
-    
-    let html;
-    if (isFirst) {
-      // KONTAKTPERSON: Volle Daten
-      html = `
-        <fieldset class="participant-fieldset participant-contact">
-          <legend>Teilnehmer 1 (Kontaktperson & Rechnungsadresse)</legend>
-          
-          <div class="form-row">
-            <label>
-              Vorname *
-              <input type="text" name="p${i}_first" required autocomplete="given-name">
-            </label>
-            <label>
-              Nachname *
-              <input type="text" name="p${i}_last" required autocomplete="family-name">
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label>
-              Geburtsdatum *
-              <input type="date" name="p${i}_birthdate" required max="${new Date().toISOString().split('T')[0]}">
-              <small class="field-hint">Erforderlich für Vereinsmitgliedschaft</small>
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label>
-              Straße *
-              <input type="text" name="p${i}_street" required autocomplete="street-address">
-            </label>
-            <label class="small">
-              Hausnr. *
-              <input type="text" name="p${i}_house" required>
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label class="small">
-              PLZ *
-              <input type="text" name="p${i}_zip" required pattern="[0-9]{4,5}" autocomplete="postal-code">
-            </label>
-            <label>
-              Ort *
-              <input type="text" name="p${i}_city" required autocomplete="address-level2">
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label>
-              Land *
-              <select name="p${i}_country" required autocomplete="country">
-                <option value="AT" selected>Österreich</option>
-                <option value="DE">Deutschland</option>
-                <option value="CH">Schweiz</option>
-                <option value="OTHER">Anderes</option>
-              </select>
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label>
-              E-Mail *
-              <input type="email" name="contact_email" required placeholder="max.mustermann@email.at" autocomplete="email">
-            </label>
-            <label>
-              Mobiltelefon *
-              <input type="tel" name="contact_phone" required placeholder="+43 664 1234567" autocomplete="tel">
-            </label>
-          </div>
-        </fieldset>
-      `;
-    } else {
-      // WEITERE TEILNEHMER: Nur Name + optionales Geburtsdatum
-      html = `
-        <fieldset class="participant-fieldset participant-additional">
-          <legend>Teilnehmer ${i + 1}</legend>
-          
-          <div class="form-row">
-            <label>
-              Vorname *
-              <input type="text" name="p${i}_first" required>
-            </label>
-            <label>
-              Nachname *
-              <input type="text" name="p${i}_last" required>
-            </label>
-          </div>
-          
-          <div class="form-row">
-            <label>
-              Geburtsdatum
-              <input type="date" name="p${i}_birthdate" max="${new Date().toISOString().split('T')[0]}">
-              <small class="field-hint">Optional – nur falls für Mitgliedschaft erforderlich</small>
-            </label>
-          </div>
-        </fieldset>
-      `;
-    }
-    container.insertAdjacentHTML("beforeend", html);
-  }
+  // Formular für einzelnen Teilnehmer (Kontaktperson)
+  container.innerHTML = `
+    <fieldset class="participant-fieldset participant-contact">
+      <legend>Kontaktperson & Rechnungsadresse</legend>
+      
+      <div class="form-row">
+        <label>
+          Vorname *
+          <input type="text" name="p0_first" required autocomplete="given-name">
+        </label>
+        <label>
+          Nachname *
+          <input type="text" name="p0_last" required autocomplete="family-name">
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <label>
+          Geburtsdatum *
+          <input type="date" name="p0_birthdate" required max="${new Date().toISOString().split('T')[0]}">
+          <small class="field-hint">Erforderlich für Vereinsmitgliedschaft</small>
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <label>
+          Straße *
+          <input type="text" name="p0_street" required autocomplete="street-address">
+        </label>
+        <label class="small">
+          Hausnr. *
+          <input type="text" name="p0_house" required>
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <label class="small">
+          PLZ *
+          <input type="text" name="p0_zip" required pattern="[0-9]{4,5}" autocomplete="postal-code">
+        </label>
+        <label>
+          Ort *
+          <input type="text" name="p0_city" required autocomplete="address-level2">
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <label>
+          Land *
+          <select name="p0_country" required autocomplete="country">
+            <option value="AT" selected>Österreich</option>
+            <option value="DE">Deutschland</option>
+            <option value="CH">Schweiz</option>
+            <option value="OTHER">Anderes</option>
+          </select>
+        </label>
+      </div>
+      
+      <div class="form-row">
+        <label>
+          E-Mail *
+          <input type="email" name="contact_email" required placeholder="max.mustermann@email.at" autocomplete="email">
+        </label>
+        <label>
+          Mobiltelefon *
+          <input type="tel" name="contact_phone" required placeholder="+43 664 1234567" autocomplete="tel">
+        </label>
+      </div>
+    </fieldset>
+  `;
 }
 
 /**
@@ -1092,7 +1006,6 @@ function showSuccess(bookingId, slotId, count, email, emailSent, webhookResult =
     
     const idEl = document.getElementById("success-id");
     const dateEl = document.getElementById("success-date");
-    const countEl = document.getElementById("success-count");
     const emailEl = document.getElementById("success-email");
     const emailStatusEl = document.getElementById("email-status-text");
     const nextStepsEl = document.getElementById("next-steps");
@@ -1100,7 +1013,6 @@ function showSuccess(bookingId, slotId, count, email, emailSent, webhookResult =
     
     if (idEl) idEl.textContent = bookingId || "–";
     if (dateEl) dateEl.textContent = formatDateLong(slotId);
-    if (countEl) countEl.textContent = count;
     if (emailEl) emailEl.textContent = email;
     
     // E-Mail-Status anzeigen

@@ -292,7 +292,7 @@ function doPost(e) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Alle Slots mit Verfügbarkeit zurückgeben
+ * Alle Slots mit Verfügbarkeit zurückgeben (inkl. ausgebuchte)
  */
 function handleGetSlots() {
   const sheet = getSheet(SHEET_SLOTS);
@@ -306,24 +306,27 @@ function handleGetSlots() {
     // Datum als YYYY-MM-DD String formatieren (lokale Zeitzone)
     const dateId = extractSlotDateId(row[0]);
     
+    if (!dateId) continue; // Ungültige Zeilen überspringen
+    
+    const capacity = row[4] || 8;
+    const booked = row[5] || 0;
+    const status = row[6] || "OPEN";
+    const free = capacity - booked;
+    
     const slot = {
-      slot_id: dateId,           // Als String, nicht als Date
-      date: dateId,              // Als String, nicht als Date
-      date_display: formatDateDisplay(row[0]),  // Für Anzeige
+      slot_id: dateId,
+      date: dateId,
+      date_display: formatDateDisplay(row[0]),
       start: "09:00",
       end: "15:00",
-      capacity: row[4] || 8,
-      booked: row[5] || 0,
-      status: row[6] || "OPEN"
+      capacity: capacity,
+      booked: booked,
+      free: free,
+      status: free <= 0 ? "FULL" : status  // Status automatisch auf FULL wenn ausgebucht
     };
     
-    // Nur offene Slots
-    if (slot.status === "OPEN" || slot.status !== "FULL") {
-      slot.free = slot.capacity - slot.booked;
-      if (slot.free > 0) {
-        slots.push(slot);
-      }
-    }
+    // ALLE Slots zurückgeben (auch ausgebuchte - Frontend zeigt sie rot an)
+    slots.push(slot);
   }
   
   return jsonResponse({ ok: true, slots: slots });
@@ -1274,6 +1277,108 @@ Storniert am: ${new Date().toLocaleString("de-AT")}
 // ══════════════════════════════════════════════════════════════════════════════
 // SEEDER FUNKTION
 // ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * PRÜF- UND REPARATURFUNKTION
+ * Zählt alle Buchungen und korrigiert die booked-Werte in der Slots-Tabelle
+ * Diese Funktion manuell im Script-Editor ausführen!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function recalculateBookedCounts() {
+  const ss = getSpreadsheet();
+  const slotsSheet = ss.getSheetByName(SHEET_SLOTS);
+  const bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
+  
+  if (!slotsSheet || !bookingsSheet) {
+    console.log("❌ Sheets nicht gefunden!");
+    return;
+  }
+  
+  // Alle Buchungen laden
+  const bookingsData = bookingsSheet.getDataRange().getValues();
+  const bookingsHeaders = bookingsData[0];
+  
+  // Spalten-Index finden
+  const slotIdColIdx = bookingsHeaders.indexOf("slot_id");
+  const statusColIdx = bookingsHeaders.indexOf("status");
+  const countColIdx = bookingsHeaders.indexOf("participants_count");
+  
+  console.log("📊 Buchungen analysieren...");
+  console.log(`   Spalten: slot_id=${slotIdColIdx}, status=${statusColIdx}, count=${countColIdx}`);
+  
+  // Zähler pro Slot-Datum erstellen
+  const bookingCounts = {};
+  
+  for (let i = 1; i < bookingsData.length; i++) {
+    const row = bookingsData[i];
+    const status = row[statusColIdx];
+    
+    // Nur CONFIRMED Buchungen zählen (nicht CANCELLED)
+    if (status !== "CONFIRMED") {
+      continue;
+    }
+    
+    // Slot-ID extrahieren (als YYYY-MM-DD)
+    const rawSlotId = row[slotIdColIdx];
+    const slotDateId = extractSlotDateId(rawSlotId);
+    
+    if (!slotDateId) {
+      console.log(`   ⚠️ Zeile ${i+1}: Ungültiges Datum: ${rawSlotId}`);
+      continue;
+    }
+    
+    const participantCount = parseInt(row[countColIdx]) || 1;
+    
+    if (!bookingCounts[slotDateId]) {
+      bookingCounts[slotDateId] = 0;
+    }
+    bookingCounts[slotDateId] += participantCount;
+    
+    console.log(`   Zeile ${i+1}: ${slotDateId} +${participantCount} Teilnehmer (Status: ${status})`);
+  }
+  
+  console.log("\n📅 Gezählte Buchungen pro Termin:");
+  for (const [date, count] of Object.entries(bookingCounts)) {
+    console.log(`   ${date}: ${count} Teilnehmer`);
+  }
+  
+  // Slots-Tabelle aktualisieren
+  const slotsData = slotsSheet.getDataRange().getValues();
+  console.log("\n🔧 Slots-Tabelle aktualisieren...");
+  
+  let fixedCount = 0;
+  
+  for (let i = 1; i < slotsData.length; i++) {
+    const row = slotsData[i];
+    const slotId = extractSlotDateId(row[0]); // slot_id
+    const capacity = row[4] || 8;
+    const currentBooked = row[5] || 0;
+    const currentStatus = row[6] || "OPEN";
+    
+    const actualBooked = bookingCounts[slotId] || 0;
+    const correctStatus = actualBooked >= capacity ? "FULL" : "OPEN";
+    
+    // Nur ändern wenn nötig
+    if (currentBooked !== actualBooked || currentStatus !== correctStatus) {
+      console.log(`   ${slotId}: booked ${currentBooked} → ${actualBooked}, status ${currentStatus} → ${correctStatus}`);
+      
+      // Zeile aktualisieren (Zeile i+1 wegen 1-basiertem Index)
+      slotsSheet.getRange(i + 1, 6).setValue(actualBooked);  // booked (Spalte F)
+      slotsSheet.getRange(i + 1, 7).setValue(correctStatus); // status (Spalte G)
+      fixedCount++;
+    } else {
+      console.log(`   ${slotId}: ✓ OK (booked=${actualBooked}, status=${correctStatus})`);
+    }
+  }
+  
+  console.log(`\n✅ Fertig! ${fixedCount} Slots korrigiert.`);
+  
+  return {
+    bookingCounts: bookingCounts,
+    fixedSlots: fixedCount
+  };
+}
 
 /**
  * Slots für 2026 initialisieren

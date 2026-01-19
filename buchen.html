@@ -59,37 +59,17 @@
         <a href="index.html" class="slot-change-link">← Anderen Termin wählen</a>
       </div>
       
-      <!-- Teilnehmeranzahl – Hervorgehoben -->
-      <div class="participants-count-section">
-        <div class="section-header">
-          <span class="section-icon">👥</span>
-          <h3>Wie viele Teilnehmer?</h3>
-        </div>
-        <p class="section-description">Wähle die Anzahl der Personen, die am Kurs teilnehmen möchten.</p>
-        <div class="count-input-wrapper">
-          <button type="button" class="count-btn count-minus" id="count-minus">−</button>
-          <input type="number" id="participants_count" name="participants_count" min="1" max="8" value="1" required readonly>
-          <button type="button" class="count-btn count-plus" id="count-plus">+</button>
-        </div>
-        <p class="count-hint">Maximal 8 Teilnehmer pro Termin</p>
-      </div>
+      <!-- Verstecktes Feld: Immer 1 Teilnehmer -->
+      <input type="hidden" id="participants_count" name="participants_count" value="1">
       
-      <!-- Teilnehmerdaten – Hervorgehoben -->
+      <!-- Teilnehmerdaten -->
       <div class="participants-data-section">
         <div class="section-header">
           <span class="section-icon">📝</span>
-          <h3>Teilnehmerdaten</h3>
+          <h3>Deine Daten</h3>
         </div>
-        <p class="section-description">Bitte gib die Daten aller Teilnehmer ein. Der erste Teilnehmer ist die Kontaktperson.</p>
+        <p class="section-description">Bitte gib deine Kontaktdaten ein.</p>
         <div id="participants"></div>
-      </div>
-      
-      <!-- Drittdaten-Checkbox (nur bei mehreren Teilnehmern, wird per JS eingeblendet) -->
-      <div id="third-party-consent" class="checkbox-group" style="display:none;">
-        <label class="checkbox-item checkbox-highlight">
-          <input type="checkbox" class="checkbox-square" name="third_party_consent" id="third_party_consent">
-          <span>Ich bestätige, dass ich berechtigt bin, die Daten der weiteren Teilnehmer anzugeben und diese über die <a href="privacy.html" target="_blank">Datenschutzhinweise</a> informiert habe. *</span>
-        </label>
       </div>
       
       <!-- BESTELLÜBERSICHT -->
@@ -103,10 +83,6 @@
         <div class="order-summary-row">
           <span class="order-label">Kurszeit:</span>
           <span class="order-value">09:00–15:00 Uhr</span>
-        </div>
-        <div class="order-summary-row">
-          <span class="order-label">Teilnehmer:</span>
-          <span class="order-value" id="summary-count">1 Person</span>
         </div>
         
         <div class="order-package">
@@ -207,10 +183,6 @@
       <div class="detail-row">
         <span class="detail-label">Termin</span>
         <span class="detail-value" id="success-date">–</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Teilnehmer</span>
-        <span class="detail-value" id="success-count">–</span>
       </div>
       <div class="detail-row">
         <span class="detail-label">Bestätigung an</span>
