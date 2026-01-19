@@ -1935,44 +1935,44 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-/* Count Input mit +/- Buttons */
+/* Count Input mit +/- Buttons - Komplett neu */
 .participants-count-section {
   text-align: center;
 }
 
 .count-input-wrapper {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   margin: 1rem auto 0.75rem;
-  border: 2px solid var(--color-primary);
-  border-radius: 8px;
-  overflow: hidden;
-  background: white;
 }
 
 .count-btn {
-  width: 60px;
-  height: 56px;
-  border: none;
+  width: 54px;
+  height: 54px;
+  border: 2px solid var(--color-primary);
   background: white;
   color: var(--color-primary);
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
 }
 
 .count-btn.count-minus {
-  border-right: 1px solid var(--color-primary);
+  border-radius: 8px 0 0 8px;
+  border-right: none;
 }
 
 .count-btn.count-plus {
-  border-left: 1px solid var(--color-primary);
+  border-radius: 0 8px 8px 0;
+  border-left: none;
 }
 
 .count-btn:hover:not(:disabled) {
@@ -1981,16 +1981,20 @@ a:focus-visible {
 }
 
 .count-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: #f0f0f0;
+  color: #999;
 }
 
-.count-input-wrapper input[type="number"] {
-  width: 70px;
-  height: 56px;
-  border: none !important;
-  background: white !important;
+.count-input-wrapper input#participants_count {
+  width: 64px;
+  height: 54px;
+  border: 2px solid var(--color-primary);
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  background: #f8f8f8;
   text-align: center;
   font-family: var(--font-sans);
   font-size: 1.5rem;
@@ -1998,30 +2002,23 @@ a:focus-visible {
   color: var(--color-primary);
   margin: 0;
   padding: 0;
-  -webkit-appearance: textfield !important;
-  -moz-appearance: textfield !important;
-  appearance: textfield !important;
-  border-radius: 0 !important;
   box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
 }
 
-/* Spinner-Pfeile komplett ausblenden - alle Browser */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none !important;
-  appearance: none !important;
-  margin: 0 !important;
-  display: none !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
+/* Spinner-Pfeile komplett ausblenden */
+.count-input-wrapper input#participants_count::-webkit-outer-spin-button,
+.count-input-wrapper input#participants_count::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+  display: none;
 }
 
-input[type="number"] {
-  -moz-appearance: textfield !important;
-}
-
-.count-input-wrapper input[type="number"]:focus {
+.count-input-wrapper input#participants_count:focus {
   outline: none;
+  background: #f0f0f0;
 }
 
 .count-hint {
@@ -2372,11 +2369,11 @@ input[type="number"] {
   .count-btn {
     width: 48px;
     height: 48px;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
   
-  .count-input-wrapper input[type="number"] {
-    width: 56px;
+  .count-input-wrapper input#participants_count {
+    width: 54px;
     height: 48px;
     font-size: 1.25rem;
   }

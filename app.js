@@ -825,6 +825,10 @@ async function handleSubmit(e) {
       contact_phone: phone,
       participants_count: count,
       participants: participants,
+      // Rückwärtskompatibilität für Backend
+      agb_accepted: true,
+      privacy_accepted: true,
+      // Neue detaillierte Einwilligungen
       terms_accepted: termsAccepted
     };
     
