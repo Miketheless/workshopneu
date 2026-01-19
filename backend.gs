@@ -1293,6 +1293,184 @@ Storniert am: ${new Date().toLocaleString("de-AT")}
  * Diese Funktion manuell im Script-Editor ausführen!
  * ══════════════════════════════════════════════════════════════════════════════
  */
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * DIAGNOSE-FUNKTION: Überprüft Daten auf Unstimmigkeiten
+ * Führe diese Funktion im Script-Editor aus, um einen Bericht zu erhalten.
+ * ÄNDERT KEINE DATEN - nur Analyse!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function diagnoseData() {
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🔍 DATENDIAGNOSE - Überprüfung aller Tabellen");
+  console.log("═══════════════════════════════════════════════════════════\n");
+  
+  const ss = getSpreadsheet();
+  const slotsSheet = ss.getSheetByName(SHEET_SLOTS);
+  const bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
+  const participantsSheet = ss.getSheetByName(SHEET_PARTICIPANTS);
+  
+  let errors = [];
+  let warnings = [];
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. BUCHUNGEN ANALYSIEREN
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log("📋 1. BUCHUNGEN-TABELLE");
+  console.log("─────────────────────────────────────────────────────────────");
+  
+  const bookingsData = bookingsSheet.getDataRange().getValues();
+  const bookingsHeaders = bookingsData[0];
+  console.log("   Header: " + bookingsHeaders.join(", "));
+  console.log("   Zeilen: " + (bookingsData.length - 1) + " Buchungen\n");
+  
+  const slotIdColIdx = bookingsHeaders.indexOf("slot_id");
+  const statusColIdx = bookingsHeaders.indexOf("status");
+  const countColIdx = bookingsHeaders.indexOf("participants_count");
+  const bookingIdColIdx = bookingsHeaders.indexOf("booking_id");
+  const voucherColIdx = bookingsHeaders.indexOf("voucher_code");
+  
+  // Buchungen pro Slot zählen
+  const bookingsBySlot = {};
+  let totalConfirmed = 0;
+  let totalCancelled = 0;
+  let totalParticipants = 0;
+  let bookingsWithVoucher = 0;
+  
+  for (let i = 1; i < bookingsData.length; i++) {
+    const row = bookingsData[i];
+    const bookingId = row[bookingIdColIdx];
+    const status = row[statusColIdx];
+    const slotDateId = extractSlotDateId(row[slotIdColIdx]);
+    const participantCount = parseInt(row[countColIdx]) || 1;
+    const voucher = voucherColIdx >= 0 ? row[voucherColIdx] : "";
+    
+    if (status === "CONFIRMED") {
+      totalConfirmed++;
+      totalParticipants += participantCount;
+      
+      if (!bookingsBySlot[slotDateId]) {
+        bookingsBySlot[slotDateId] = { count: 0, participants: 0, bookings: [] };
+      }
+      bookingsBySlot[slotDateId].count++;
+      bookingsBySlot[slotDateId].participants += participantCount;
+      bookingsBySlot[slotDateId].bookings.push(bookingId);
+    } else if (status === "CANCELLED") {
+      totalCancelled++;
+    }
+    
+    if (voucher) bookingsWithVoucher++;
+  }
+  
+  console.log("   ✓ Bestätigte Buchungen: " + totalConfirmed);
+  console.log("   ✕ Stornierte Buchungen: " + totalCancelled);
+  console.log("   👥 Gesamte Teilnehmer (bestätigt): " + totalParticipants);
+  console.log("   🎟️ Buchungen mit Gutschein: " + bookingsWithVoucher);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. SLOTS ANALYSIEREN UND VERGLEICHEN
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log("\n\n📅 2. SLOTS-TABELLE (Vergleich mit Buchungen)");
+  console.log("─────────────────────────────────────────────────────────────");
+  
+  const slotsData = slotsSheet.getDataRange().getValues();
+  console.log("   Header: " + slotsData[0].join(", "));
+  console.log("   Zeilen: " + (slotsData.length - 1) + " Termine\n");
+  
+  console.log("   Termin          | Kapazität | Gebucht (Sheets) | Gebucht (tatsächlich) | Status    | Prüfung");
+  console.log("   ────────────────┼───────────┼──────────────────┼───────────────────────┼───────────┼─────────");
+  
+  for (let i = 1; i < slotsData.length; i++) {
+    const row = slotsData[i];
+    const slotId = extractSlotDateId(row[0]);
+    const capacity = parseInt(row[4]) || 8;
+    const bookedInSheet = parseInt(row[5]) || 0;
+    const statusInSheet = row[6] || "OPEN";
+    
+    const actualBooked = bookingsBySlot[slotId] ? bookingsBySlot[slotId].participants : 0;
+    const correctStatus = actualBooked >= capacity ? "FULL" : "OPEN";
+    
+    let check = "✓ OK";
+    if (bookedInSheet !== actualBooked) {
+      check = "❌ BOOKED FALSCH";
+      errors.push(`Slot ${slotId}: booked=${bookedInSheet}, sollte ${actualBooked} sein`);
+    } else if (statusInSheet !== correctStatus) {
+      check = "⚠️ STATUS FALSCH";
+      warnings.push(`Slot ${slotId}: status=${statusInSheet}, sollte ${correctStatus} sein`);
+    }
+    
+    console.log(`   ${slotId}   |     ${String(capacity).padStart(2)}    |        ${String(bookedInSheet).padStart(2)}        |          ${String(actualBooked).padStart(2)}           | ${statusInSheet.padEnd(9)} | ${check}`);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. TEILNEHMER ANALYSIEREN
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log("\n\n👥 3. TEILNEHMER-TABELLE");
+  console.log("─────────────────────────────────────────────────────────────");
+  
+  const participantsData = participantsSheet.getDataRange().getValues();
+  console.log("   Header: " + participantsData[0].join(", "));
+  console.log("   Zeilen: " + (participantsData.length - 1) + " Teilnehmer-Einträge\n");
+  
+  // Teilnehmer pro Buchung zählen
+  const participantsByBooking = {};
+  for (let i = 1; i < participantsData.length; i++) {
+    const bookingId = participantsData[i][0];
+    if (!participantsByBooking[bookingId]) {
+      participantsByBooking[bookingId] = 0;
+    }
+    participantsByBooking[bookingId]++;
+  }
+  
+  // Vergleich mit Buchungen
+  let participantMismatches = 0;
+  for (let i = 1; i < bookingsData.length; i++) {
+    const row = bookingsData[i];
+    const bookingId = row[bookingIdColIdx];
+    const declaredCount = parseInt(row[countColIdx]) || 1;
+    const actualCount = participantsByBooking[bookingId] || 0;
+    
+    if (declaredCount !== actualCount) {
+      participantMismatches++;
+      warnings.push(`Buchung ${bookingId}: participants_count=${declaredCount}, aber ${actualCount} Teilnehmer in Tabelle`);
+    }
+  }
+  
+  console.log("   Teilnehmer-Einträge gesamt: " + (participantsData.length - 1));
+  console.log("   Unstimmigkeiten: " + participantMismatches);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ZUSAMMENFASSUNG
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log("\n\n═══════════════════════════════════════════════════════════");
+  console.log("📊 ZUSAMMENFASSUNG");
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  if (errors.length === 0 && warnings.length === 0) {
+    console.log("\n✅ ALLES IN ORDNUNG! Keine Unstimmigkeiten gefunden.");
+  } else {
+    if (errors.length > 0) {
+      console.log("\n❌ FEHLER (" + errors.length + "):");
+      errors.forEach(e => console.log("   • " + e));
+    }
+    if (warnings.length > 0) {
+      console.log("\n⚠️ WARNUNGEN (" + warnings.length + "):");
+      warnings.forEach(w => console.log("   • " + w));
+    }
+    console.log("\n💡 Führe recalculateBookedCounts() aus, um die Daten zu korrigieren.");
+  }
+  
+  console.log("\n═══════════════════════════════════════════════════════════");
+  console.log("🏁 Diagnose abgeschlossen");
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  return { errors, warnings };
+}
+
+/**
+ * Zählt Buchungen neu und korrigiert die Slots-Tabelle
+ * Führe diese Funktion aus, um Fehler zu beheben.
+ */
 function recalculateBookedCounts() {
   const ss = getSpreadsheet();
   const slotsSheet = ss.getSheetByName(SHEET_SLOTS);
