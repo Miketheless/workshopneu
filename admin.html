@@ -25,10 +25,24 @@
       border-collapse: collapse;
       border-spacing: 0;
       font-size: 0.8rem;
+      display: table;
+    }
+    
+    .admin-table thead {
+      display: table-header-group;
+    }
+    
+    .admin-table thead tr {
+      display: table-row;
+    }
+    
+    .admin-table tbody {
+      display: table-row-group;
     }
     
     .admin-table th,
     .admin-table td {
+      display: table-cell;
       padding: 0.5rem 0.4rem;
       text-align: left;
       border-bottom: 1px solid #e0e0e0;
