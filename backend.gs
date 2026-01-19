@@ -623,10 +623,14 @@ function handleAdminBookings(adminKey) {
   for (let i = 1; i < bookingsData.length; i++) {
     const row = bookingsData[i];
     const bookingId = row[0];
+    
+    // slot_id als YYYY-MM-DD String formatieren (konsistent mit handleGetSlots)
+    const slotDateId = extractSlotDateId(row[2]);
+    
     bookings.push({
       booking_id: bookingId,
       timestamp: row[1],
-      slot_id: row[2],
+      slot_id: slotDateId,  // Konvertiert zu YYYY-MM-DD
       contact_email: row[3],
       contact_phone: row[4],
       participants_count: row[5],
@@ -681,6 +685,7 @@ function handleAdminExportCsv(adminKey) {
   for (let i = 1; i < bookingsData.length; i++) {
     const booking = bookingsData[i];
     const bookingId = booking[0];
+    const slotDateId = extractSlotDateId(booking[2]); // Konvertiert zu YYYY-MM-DD
     const participants = participantsByBooking[bookingId] || [];
     
     if (participants.length > 0) {
@@ -688,7 +693,7 @@ function handleAdminExportCsv(adminKey) {
         csv += [
           bookingId,
           booking[1], // timestamp
-          booking[2], // slot_id
+          slotDateId, // slot_id (formatiert)
           booking[3], // email
           booking[4], // phone
           booking[5], // count
@@ -707,7 +712,7 @@ function handleAdminExportCsv(adminKey) {
       csv += [
         bookingId,
         booking[1],
-        booking[2],
+        slotDateId,
         booking[3],
         booking[4],
         booking[5],
