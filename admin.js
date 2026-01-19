@@ -525,36 +525,9 @@ function renderCombinedTable() {
   
   const sorted = sortData(all, combinedSortColumn, combinedSortDir);
   
-  // Gruppierung für rowspan berechnen
-  const bookingGroups = {};
-  sorted.forEach((row, idx) => {
-    if (!bookingGroups[row.booking_id]) {
-      bookingGroups[row.booking_id] = { startIdx: idx, count: 0 };
-    }
-    bookingGroups[row.booking_id].count++;
-  });
-  
-  let lastBookingId = null;
-  
+  // Einfache Tabelle ohne rowspan - jede Zeile enthält alle Daten
   const html = `
     <table class="admin-table combined-table">
-      <colgroup>
-        <col style="width: 7%;">   <!-- Termin -->
-        <col style="width: 7%;">   <!-- Buchungs-ID -->
-        <col style="width: 8%;">   <!-- Name -->
-        <col style="width: 8%;">   <!-- Nachname -->
-        <col style="width: 12%;">  <!-- Adresse -->
-        <col style="width: 5%;">   <!-- PLZ -->
-        <col style="width: 8%;">   <!-- Ort -->
-        <col style="width: 12%;">  <!-- E-Mail -->
-        <col style="width: 7%;">   <!-- Telefon -->
-        <col style="width: 4%;">   <!-- Rechn. -->
-        <col style="width: 4%;">   <!-- Ersch. -->
-        <col style="width: 4%;">   <!-- Mitgl. -->
-        <col style="width: 4%;">   <!-- DSGVO -->
-        <col style="width: 5%;">   <!-- Status -->
-        <col style="width: 5%;">   <!-- Aktion -->
-      </colgroup>
       <thead>
         <tr>
           <th class="sortable-header" data-column="slot_id">Termin ${getSortIcon("slot_id", combinedSortColumn, combinedSortDir)}</th>
@@ -562,75 +535,48 @@ function renderCombinedTable() {
           <th class="sortable-header" data-column="first_name">Vorname ${getSortIcon("first_name", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="last_name">Nachname ${getSortIcon("last_name", combinedSortColumn, combinedSortDir)}</th>
           <th class="no-sort">Adresse</th>
-          <th class="no-sort col-center">PLZ</th>
+          <th class="no-sort">PLZ</th>
           <th class="no-sort">Ort</th>
           <th class="sortable-header" data-column="contact_email">E-Mail ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
           <th class="no-sort">Telefon</th>
-          <th class="no-sort col-center" title="Rechnung gesendet">R</th>
-          <th class="no-sort col-center" title="Erschienen">E</th>
-          <th class="no-sort col-center" title="Mitgliedschaft">M</th>
-          <th class="no-sort col-center" title="DSGVO">D</th>
-          <th class="no-sort col-center">Status</th>
-          <th class="no-sort col-center">Aktion</th>
+          <th class="no-sort" title="Rechnung gesendet">R</th>
+          <th class="no-sort" title="Erschienen">E</th>
+          <th class="no-sort" title="Mitgliedschaft">M</th>
+          <th class="no-sort" title="DSGVO">D</th>
+          <th class="no-sort">Status</th>
+          <th class="no-sort">Aktion</th>
         </tr>
       </thead>
       <tbody>
-        ${sorted.map((row, idx) => {
+        ${sorted.map((row) => {
           const cancelled = row.status === "CANCELLED";
           const disabled = cancelled ? "disabled" : "";
-          const isFirstInGroup = row.booking_id !== lastBookingId;
-          const groupInfo = bookingGroups[row.booking_id];
-          
-          let paidVal = "";
-          if (row.paid_date) {
-            try { paidVal = new Date(row.paid_date).toISOString().split("T")[0]; } catch(e) {}
-          }
-          
           const addressStr = row.street ? `${row.street} ${row.house_no || ""}`.trim() : "–";
           
-          let html = `<tr class="${cancelled ? "row-cancelled" : ""} ${isFirstInGroup ? "group-start" : ""}">`;
-          
-          // Nur bei erster Zeile der Buchung: Termin, Buchungs-ID, E-Mail, Telefon, Checkboxen, Status, Aktion
-          if (isFirstInGroup) {
-            const rowspan = groupInfo.count > 1 ? `rowspan="${groupInfo.count}"` : "";
-            html += `
-              <td ${rowspan}>${formatDate(row.slot_id)}</td>
-              <td ${rowspan}><strong>${row.booking_id}</strong></td>
-            `;
-          }
-          
-          // Teilnehmer-Daten (immer)
-          html += `
-            <td class="name-cell"><strong>${row.first_name}</strong></td>
-            <td class="name-cell"><strong>${row.last_name}</strong></td>
-            <td>${addressStr}</td>
-            <td class="col-center">${row.zip || "–"}</td>
-            <td>${row.city || "–"}</td>
-          `;
-          
-          // Nur bei erster Zeile: restliche Buchungsdaten
-          if (isFirstInGroup) {
-            const rowspan = groupInfo.count > 1 ? `rowspan="${groupInfo.count}"` : "";
-            html += `
-              <td ${rowspan}><a href="mailto:${row.contact_email}">${row.contact_email || "–"}</a></td>
-              <td ${rowspan}>${row.contact_phone || "–"}</td>
-              <td ${rowspan} class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="invoice_sent" ${row.invoice_sent ? "checked" : ""} ${disabled}></td>
-              <td ${rowspan} class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="appeared" ${row.appeared ? "checked" : ""} ${disabled}></td>
-              <td ${rowspan} class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="membership_form" ${row.membership_form ? "checked" : ""} ${disabled}></td>
-              <td ${rowspan} class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="dsgvo_form" ${row.dsgvo_form ? "checked" : ""} ${disabled}></td>
-              <td ${rowspan} class="col-center"><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕" : "✓"}</span></td>
-              <td ${rowspan} class="col-center">
+          return `
+            <tr class="${cancelled ? "row-cancelled" : ""}">
+              <td>${formatDate(row.slot_id)}</td>
+              <td><strong>${row.booking_id}</strong></td>
+              <td class="name-cell"><strong>${row.first_name}</strong></td>
+              <td class="name-cell"><strong>${row.last_name}</strong></td>
+              <td>${addressStr}</td>
+              <td>${row.zip || "–"}</td>
+              <td>${row.city || "–"}</td>
+              <td><a href="mailto:${row.contact_email}">${row.contact_email || "–"}</a></td>
+              <td>${row.contact_phone || "–"}</td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="invoice_sent" ${row.invoice_sent ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="appeared" ${row.appeared ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="membership_form" ${row.membership_form ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="dsgvo_form" ${row.dsgvo_form ? "checked" : ""} ${disabled}></td>
+              <td class="col-center"><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕" : "✓"}</span></td>
+              <td class="col-center">
                 ${cancelled 
                   ? `<button type="button" class="btn-restore" data-id="${row.booking_id}" title="Wiederherstellen">↩</button>` 
                   : `<button type="button" class="btn-cancel" data-id="${row.booking_id}" title="Stornieren">✕</button>`
                 }
               </td>
-            `;
-          }
-          
-          html += `</tr>`;
-          lastBookingId = row.booking_id;
-          return html;
+            </tr>
+          `;
         }).join("")}
       </tbody>
     </table>
