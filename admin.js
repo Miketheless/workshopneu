@@ -525,26 +525,26 @@ function renderCombinedTable() {
   
   const sorted = sortData(all, combinedSortColumn, combinedSortDir);
   
-  // Einfache Tabelle ohne rowspan - jede Zeile enthält alle Daten
+  // Einfache Tabelle - jede Zeile enthält alle Daten, alle Spalten sortierbar
   const html = `
     <table class="admin-table combined-table">
       <thead>
         <tr>
-          <th class="sortable-header" data-column="slot_id">Termin ${getSortIcon("slot_id", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header" data-column="booking_id">Buchung ${getSortIcon("booking_id", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header" data-column="first_name">Vorname ${getSortIcon("first_name", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header" data-column="last_name">Nachname ${getSortIcon("last_name", combinedSortColumn, combinedSortDir)}</th>
-          <th class="no-sort">Adresse</th>
-          <th class="no-sort">PLZ</th>
-          <th class="no-sort">Ort</th>
-          <th class="sortable-header" data-column="contact_email">E-Mail ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
-          <th class="no-sort">Telefon</th>
-          <th class="no-sort" title="Rechnung gesendet">R</th>
-          <th class="no-sort" title="Erschienen">E</th>
-          <th class="no-sort" title="Mitgliedschaft">M</th>
-          <th class="no-sort" title="DSGVO">D</th>
-          <th class="no-sort">Status</th>
-          <th class="no-sort">Aktion</th>
+          <th class="sortable-header vertical-header" data-column="slot_id"><span>Termin</span> ${getSortIcon("slot_id", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="booking_id"><span>Buchung</span> ${getSortIcon("booking_id", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="first_name"><span>Vorname</span> ${getSortIcon("first_name", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="last_name"><span>Nachname</span> ${getSortIcon("last_name", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="street"><span>Adresse</span> ${getSortIcon("street", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="zip"><span>PLZ</span> ${getSortIcon("zip", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="city"><span>Ort</span> ${getSortIcon("city", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="contact_email"><span>E-Mail</span> ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="contact_phone"><span>Telefon</span> ${getSortIcon("contact_phone", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="invoice_sent"><span>Rechnung</span> ${getSortIcon("invoice_sent", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="appeared"><span>Erschienen</span> ${getSortIcon("appeared", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="membership_form"><span>Mitgliedschaft</span> ${getSortIcon("membership_form", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="dsgvo_form"><span>DSGVO</span> ${getSortIcon("dsgvo_form", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="status"><span>Status</span> ${getSortIcon("status", combinedSortColumn, combinedSortDir)}</th>
+          <th class="vertical-header"><span>Aktion</span></th>
         </tr>
       </thead>
       <tbody>

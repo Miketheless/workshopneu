@@ -97,19 +97,35 @@
     
     /* Kombinierte Tabelle */
     .admin-table.combined-table {
-      min-width: 1400px;
+      min-width: 1200px;
     }
     
     .admin-table.combined-table th,
     .admin-table.combined-table td {
-      padding: 0.5rem 0.5rem;
-      font-size: 0.8rem;
+      padding: 0.4rem 0.3rem;
+      font-size: 0.75rem;
     }
     
     .admin-table.combined-table td {
-      max-width: 150px;
+      max-width: 120px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    
+    /* Vertikale Header (90° gegen Uhrzeigersinn) */
+    .admin-table .vertical-header {
+      height: 90px;
+      white-space: nowrap;
+      vertical-align: bottom;
+      text-align: center;
+      padding: 0.3rem;
+    }
+    
+    .admin-table .vertical-header span {
+      display: inline-block;
+      transform: rotate(-90deg);
+      transform-origin: center center;
+      white-space: nowrap;
     }
     
     /* Inputs */
