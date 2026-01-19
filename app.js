@@ -444,11 +444,12 @@ function displaySelectedSlot() {
   if (!selectedSlot) return;
   
   const free = selectedSlot.capacity - selectedSlot.booked;
+  const dateFormatted = formatDateLong(selectedSlot.date);
   
   // Header Badge
   const headerText = document.getElementById("selected-date-text");
   if (headerText) {
-    headerText.textContent = formatDateLong(selectedSlot.date);
+    headerText.textContent = dateFormatted;
   }
   
   // Info-Card im Formular
@@ -457,7 +458,7 @@ function displaySelectedSlot() {
   const infoFree = document.getElementById("slot-info-free");
   const hiddenInput = document.getElementById("slot_id");
   
-  if (infoDate) infoDate.textContent = formatDateLong(selectedSlot.date);
+  if (infoDate) infoDate.textContent = dateFormatted;
   
   // Neues Uhrzeit-Format
   if (infoTime) {
@@ -479,6 +480,12 @@ function displaySelectedSlot() {
   }
   
   if (hiddenInput) hiddenInput.value = selectedSlot.id;
+  
+  // Bestellübersicht aktualisieren
+  const summaryDate = document.getElementById("summary-date");
+  if (summaryDate) {
+    summaryDate.textContent = dateFormatted;
+  }
 }
 
 /**
@@ -540,7 +547,9 @@ function setupBookingForm(maxParticipants) {
 }
 
 /**
- * Teilnehmerfelder rendern
+ * Teilnehmerfelder rendern (DSGVO-minimal)
+ * Kontaktperson: volle Daten inkl. Geburtsdatum
+ * Weitere Teilnehmer: nur Name + optionales Geburtsdatum
  */
 function renderParticipants(count) {
   const container = document.getElementById("participants");
@@ -548,60 +557,142 @@ function renderParticipants(count) {
   
   container.innerHTML = "";
   
+  // Drittdaten-Checkbox ein-/ausblenden
+  const thirdPartyConsent = document.getElementById("third-party-consent");
+  if (thirdPartyConsent) {
+    thirdPartyConsent.style.display = count > 1 ? "block" : "none";
+    const checkbox = document.getElementById("third_party_consent");
+    if (checkbox) checkbox.required = count > 1;
+  }
+  
+  // Bestellübersicht aktualisieren
+  updateOrderSummary(count);
+  
   for (let i = 0; i < count; i++) {
     const isFirst = i === 0;
-    const html = `
-      <fieldset class="participant-fieldset">
-        <legend>Teilnehmer ${i + 1}${isFirst ? " (Kontakt)" : ""}</legend>
-        
-        <div class="form-row">
-          <label>
-            Vorname *
-            <input type="text" name="p${i}_first" required>
-          </label>
-          <label>
-            Nachname *
-            <input type="text" name="p${i}_last" required>
-          </label>
-        </div>
-        
-        <div class="form-row">
-          <label>
-            Straße *
-            <input type="text" name="p${i}_street" required>
-          </label>
-          <label class="small">
-            Hausnr. *
-            <input type="text" name="p${i}_house" required>
-          </label>
-        </div>
-        
-        <div class="form-row">
-          <label class="small">
-            PLZ *
-            <input type="text" name="p${i}_zip" required pattern="[0-9]{4,5}">
-          </label>
-          <label>
-            Ort *
-            <input type="text" name="p${i}_city" required>
-          </label>
-        </div>
-        
-        ${isFirst ? `
+    
+    let html;
+    if (isFirst) {
+      // KONTAKTPERSON: Volle Daten
+      html = `
+        <fieldset class="participant-fieldset participant-contact">
+          <legend>Teilnehmer 1 (Kontaktperson & Rechnungsadresse)</legend>
+          
+          <div class="form-row">
+            <label>
+              Vorname *
+              <input type="text" name="p${i}_first" required autocomplete="given-name">
+            </label>
+            <label>
+              Nachname *
+              <input type="text" name="p${i}_last" required autocomplete="family-name">
+            </label>
+          </div>
+          
+          <div class="form-row">
+            <label>
+              Geburtsdatum *
+              <input type="date" name="p${i}_birthdate" required max="${new Date().toISOString().split('T')[0]}">
+              <small class="field-hint">Erforderlich für Vereinsmitgliedschaft</small>
+            </label>
+          </div>
+          
+          <div class="form-row">
+            <label>
+              Straße *
+              <input type="text" name="p${i}_street" required autocomplete="street-address">
+            </label>
+            <label class="small">
+              Hausnr. *
+              <input type="text" name="p${i}_house" required>
+            </label>
+          </div>
+          
+          <div class="form-row">
+            <label class="small">
+              PLZ *
+              <input type="text" name="p${i}_zip" required pattern="[0-9]{4,5}" autocomplete="postal-code">
+            </label>
+            <label>
+              Ort *
+              <input type="text" name="p${i}_city" required autocomplete="address-level2">
+            </label>
+          </div>
+          
+          <div class="form-row">
+            <label>
+              Land *
+              <select name="p${i}_country" required autocomplete="country">
+                <option value="AT" selected>Österreich</option>
+                <option value="DE">Deutschland</option>
+                <option value="CH">Schweiz</option>
+                <option value="OTHER">Anderes</option>
+              </select>
+            </label>
+          </div>
+          
           <div class="form-row">
             <label>
               E-Mail *
-              <input type="email" name="contact_email" required placeholder="max.mustermann@email.at">
+              <input type="email" name="contact_email" required placeholder="max.mustermann@email.at" autocomplete="email">
             </label>
             <label>
-              Telefon *
-              <input type="tel" name="contact_phone" required placeholder="+43 664 1234567">
+              Mobiltelefon *
+              <input type="tel" name="contact_phone" required placeholder="+43 664 1234567" autocomplete="tel">
             </label>
           </div>
-        ` : ""}
-      </fieldset>
-    `;
+        </fieldset>
+      `;
+    } else {
+      // WEITERE TEILNEHMER: Nur Name + optionales Geburtsdatum
+      html = `
+        <fieldset class="participant-fieldset participant-additional">
+          <legend>Teilnehmer ${i + 1}</legend>
+          
+          <div class="form-row">
+            <label>
+              Vorname *
+              <input type="text" name="p${i}_first" required>
+            </label>
+            <label>
+              Nachname *
+              <input type="text" name="p${i}_last" required>
+            </label>
+          </div>
+          
+          <div class="form-row">
+            <label>
+              Geburtsdatum
+              <input type="date" name="p${i}_birthdate" max="${new Date().toISOString().split('T')[0]}">
+              <small class="field-hint">Optional – nur falls für Mitgliedschaft erforderlich</small>
+            </label>
+          </div>
+        </fieldset>
+      `;
+    }
     container.insertAdjacentHTML("beforeend", html);
+  }
+}
+
+/**
+ * Bestellübersicht aktualisieren
+ */
+function updateOrderSummary(count) {
+  const summaryCount = document.getElementById("summary-count");
+  const summaryTotal = document.getElementById("summary-total");
+  const summaryDate = document.getElementById("summary-date");
+  
+  if (summaryCount) {
+    summaryCount.textContent = count === 1 ? "1 Person" : `${count} Personen`;
+  }
+  
+  if (summaryTotal) {
+    const total = count * 144;
+    summaryTotal.textContent = `${total} €`;
+  }
+  
+  if (summaryDate && selectedSlot) {
+    summaryDate.textContent = formatDateLong(selectedSlot.date);
   }
 }
 
@@ -610,7 +701,7 @@ function renderParticipants(count) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Formular verarbeiten
+ * Formular verarbeiten (mit rechtlichen Checkboxen und Metadata)
  */
 async function handleSubmit(e) {
   e.preventDefault();
@@ -618,6 +709,10 @@ async function handleSubmit(e) {
   const form = e.target;
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
+  const checkboxError = document.getElementById("checkbox-error");
+  
+  // Fehlermeldung zurücksetzen
+  if (checkboxError) checkboxError.style.display = "none";
   
   btn.disabled = true;
   btn.textContent = "Wird gesendet...";
@@ -629,31 +724,100 @@ async function handleSubmit(e) {
     const phone = formData.get("contact_phone") || "";
     
     if (!slotId) throw new Error("Kein Termin gewählt.");
-    if (!email) throw new Error("Bitte E-Mail eingeben.");
-    if (!phone) throw new Error("Bitte Telefonnummer eingeben.");
+    if (!email) throw new Error("Bitte E-Mail-Adresse eingeben.");
     
+    // E-Mail Validierung
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) throw new Error("Bitte gültige E-Mail-Adresse eingeben.");
+    
+    if (!phone) throw new Error("Bitte Mobiltelefonnummer eingeben.");
+    
+    // Telefon minimal validieren (mind. 6 Ziffern)
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 6) throw new Error("Bitte gültige Telefonnummer eingeben.");
+    
+    // Teilnehmerdaten sammeln
     const participants = [];
     for (let i = 0; i < count; i++) {
-      participants.push({
+      const isFirst = i === 0;
+      const participant = {
         first_name: formData.get(`p${i}_first`) || "",
         last_name: formData.get(`p${i}_last`) || "",
-        street: formData.get(`p${i}_street`) || "",
-        house_no: formData.get(`p${i}_house`) || "",
-        zip: formData.get(`p${i}_zip`) || "",
-        city: formData.get(`p${i}_city`) || ""
-      });
+        birthdate: formData.get(`p${i}_birthdate`) || ""
+      };
+      
+      // Geburtsdatum validieren (nicht in der Zukunft)
+      if (participant.birthdate) {
+        const birthDate = new Date(participant.birthdate);
+        if (birthDate > new Date()) {
+          throw new Error(`Teilnehmer ${i + 1}: Geburtsdatum darf nicht in der Zukunft liegen.`);
+        }
+      }
+      
+      // Kontaktperson: Adressdaten
+      if (isFirst) {
+        participant.street = formData.get(`p${i}_street`) || "";
+        participant.house_no = formData.get(`p${i}_house`) || "";
+        participant.zip = formData.get(`p${i}_zip`) || "";
+        participant.city = formData.get(`p${i}_city`) || "";
+        participant.country = formData.get(`p${i}_country`) || "AT";
+        
+        // Geburtsdatum Pflicht für Kontaktperson
+        if (!participant.birthdate) {
+          throw new Error("Bitte Geburtsdatum der Kontaktperson eingeben.");
+        }
+      }
+      
+      participants.push(participant);
     }
     
-    // AGB und Datenschutz Checkboxen prüfen
-    const agbCheckbox = document.getElementById("agb_accepted");
-    const privacyCheckbox = document.getElementById("privacy_accepted");
+    // CHECKBOXEN VALIDIEREN
+    const requiredCheckboxes = [
+      { id: "agb_kurs", name: "AGB für den Platzreifekurs" },
+      { id: "privacy_accepted", name: "Datenschutzerklärung" },
+      { id: "membership_statutes", name: "Mitgliedschaftsantrag und Statuten" },
+      { id: "partner_awareness", name: "Vertragspartner-Kenntnisnahme" },
+      { id: "cancellation_notice", name: "Kündigungshinweis" },
+      { id: "fagg_consent", name: "Fixtermin/FAGG-Zustimmung" }
+    ];
     
-    const agbAccepted = agbCheckbox ? agbCheckbox.checked : false;
-    const privacyAccepted = privacyCheckbox ? privacyCheckbox.checked : false;
-    
-    if (!agbAccepted || !privacyAccepted) {
-      throw new Error("Bitte akzeptiere die AGB und Datenschutzerklärung.");
+    // Drittdaten-Checkbox bei mehreren Teilnehmern
+    if (count > 1) {
+      requiredCheckboxes.push({ id: "third_party_consent", name: "Drittdaten-Bestätigung" });
     }
+    
+    const missingCheckboxes = [];
+    for (const cb of requiredCheckboxes) {
+      const checkbox = document.getElementById(cb.id);
+      if (!checkbox || !checkbox.checked) {
+        missingCheckboxes.push(cb.name);
+      }
+    }
+    
+    if (missingCheckboxes.length > 0) {
+      const errorMsg = `Bitte bestätige: ${missingCheckboxes.join(", ")}`;
+      if (checkboxError) {
+        checkboxError.textContent = errorMsg;
+        checkboxError.style.display = "block";
+      }
+      throw new Error(errorMsg);
+    }
+    
+    // Zustimmungen mit Timestamp sammeln
+    const acceptedAt = new Date().toISOString();
+    const termsAccepted = {
+      agb_kurs: document.getElementById("agb_kurs")?.checked || false,
+      privacy_accepted: document.getElementById("privacy_accepted")?.checked || false,
+      membership_statutes: document.getElementById("membership_statutes")?.checked || false,
+      partner_awareness: document.getElementById("partner_awareness")?.checked || false,
+      cancellation_notice: document.getElementById("cancellation_notice")?.checked || false,
+      fagg_consent: document.getElementById("fagg_consent")?.checked || false,
+      third_party_consent: count > 1 ? (document.getElementById("third_party_consent")?.checked || false) : null,
+      newsletter: document.getElementById("newsletter")?.checked || false,
+      accepted_at: acceptedAt,
+      terms_version: window.location.origin + "/platzreife/v2026-01",
+      user_agent: navigator.userAgent
+    };
     
     const payload = {
       slot_id: slotId,
@@ -661,8 +825,7 @@ async function handleSubmit(e) {
       contact_phone: phone,
       participants_count: count,
       participants: participants,
-      agb_accepted: agbAccepted,
-      privacy_accepted: privacyAccepted
+      terms_accepted: termsAccepted
     };
     
     console.log("Sende Buchung:", payload);
@@ -708,7 +871,7 @@ async function handleSubmit(e) {
   } catch (error) {
     showMessage(error.message, "error");
     btn.disabled = false;
-    btn.textContent = "Verbindlich buchen";
+    btn.textContent = "Jetzt kostenpflichtig buchen";
   }
 }
 

@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Platzreife-Kurs buchen beim Golfclub Metzenhof.">
-  <title>Kurs buchen – Golfclub Metzenhof</title>
+  <meta name="description" content="Platzreifekurs Paket 2026 – Online buchen beim Golfclub Metzenhof.">
+  <title>Platzreifekurs buchen – Golfclub Metzenhof</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -84,20 +84,110 @@
         <div id="participants"></div>
       </div>
       
-      <!-- Checkboxen -->
-      <div class="checkbox-group">
-        <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="agb_accepted" id="agb_accepted" required>
-          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>.</span>
-        </label>
-        <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="privacy_accepted" id="privacy_accepted" required>
-          <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen und stimme zu.</span>
+      <!-- Drittdaten-Checkbox (nur bei mehreren Teilnehmern, wird per JS eingeblendet) -->
+      <div id="third-party-consent" class="checkbox-group" style="display:none;">
+        <label class="checkbox-item checkbox-highlight">
+          <input type="checkbox" class="checkbox-square" name="third_party_consent" id="third_party_consent">
+          <span>Ich bestätige, dass ich berechtigt bin, die Daten der weiteren Teilnehmer anzugeben und diese über die <a href="privacy.html" target="_blank">Datenschutzhinweise</a> informiert habe. *</span>
         </label>
       </div>
       
+      <!-- BESTELLÜBERSICHT -->
+      <div class="order-summary">
+        <h3>📋 Bestellübersicht</h3>
+        
+        <div class="order-summary-row">
+          <span class="order-label">Gewählter Termin:</span>
+          <span class="order-value" id="summary-date">–</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-label">Kurszeit:</span>
+          <span class="order-value">09:00–15:00 Uhr</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-label">Teilnehmer:</span>
+          <span class="order-value" id="summary-count">1 Person</span>
+        </div>
+        
+        <div class="order-package">
+          <strong>Im Paket enthalten:</strong>
+          <ul>
+            <li>✓ Platzreifekurs (Theorie + Praxis)</li>
+            <li>✓ Trainer & Übungsbälle</li>
+            <li>✓ Platzreifeprüfung</li>
+            <li>✓ Einzelmitgliedschaft 2026</li>
+          </ul>
+        </div>
+        
+        <div class="order-price">
+          <div class="price-total">
+            <span>Gesamtpreis:</span>
+            <strong id="summary-total">144 €</strong>
+          </div>
+          <div class="price-breakdown">
+            <span>99 € Kurs (GmbH) + 45 € Mitgliedschaft (Verein)</span>
+          </div>
+        </div>
+        
+        <div class="order-partners">
+          <small>Kursvertrag mit der Golfplatz Kronstorf-Steyr Betriebs-GmbH; Mitgliedschaftsantrag an den Verein Metzenhof.</small>
+        </div>
+      </div>
+      
+      <!-- RECHTLICHE CHECKBOXEN -->
+      <div class="legal-checkboxes">
+        <h4>Rechtliche Zustimmungen</h4>
+        
+        <!-- 1. AGB Kurs -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="agb_kurs" id="agb_kurs" required>
+          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB für den Platzreifekurs</a> (GmbH). *</span>
+        </label>
+        
+        <!-- 2. Datenschutz -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="privacy_accepted" id="privacy_accepted" required>
+          <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> gelesen. *</span>
+        </label>
+        
+        <!-- 3. Mitgliedschaft + Statuten -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="membership_statutes" id="membership_statutes" required>
+          <span>Ich beantrage die Aufnahme als Mitglied im Verein Metzenhof und akzeptiere die <a href="AGB Verein Golfpark Metzenhof.pdf" target="_blank">Statuten sowie Haus- und Platzordnung</a>. *</span>
+        </label>
+        
+        <!-- 4. Vertragspartner-Trennung -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="partner_awareness" id="partner_awareness" required>
+          <span>Mir ist bekannt, dass der Kurs über die Golfplatz Kronstorf-Steyr Betriebs-GmbH und die Mitgliedschaft über den Verein Metzenhof abgewickelt wird. *</span>
+        </label>
+        
+        <!-- 5. Kündigungshinweis -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="cancellation_notice" id="cancellation_notice" required>
+          <span>Ich habe die Kündigungsfrist und automatische Verlängerung gemäß Statuten zur Kenntnis genommen (Kündigung bis 31.12.). *</span>
+        </label>
+        
+        <!-- 6. Fixtermin / FAGG -->
+        <label class="checkbox-item">
+          <input type="checkbox" class="checkbox-square" name="fagg_consent" id="fagg_consent" required>
+          <span>Ich stimme ausdrücklich zu, dass die Leistung zu einem fixen Termin erbracht wird und nehme zur Kenntnis, dass dadurch kein Rücktrittsrecht gemäß § 18 FAGG besteht. *</span>
+        </label>
+        
+        <!-- Optional: Newsletter -->
+        <label class="checkbox-item checkbox-optional">
+          <input type="checkbox" class="checkbox-square" name="newsletter" id="newsletter">
+          <span>Ich möchte den Newsletter per E-Mail erhalten (jederzeit widerrufbar).</span>
+        </label>
+        
+        <p class="checkbox-hint">* Pflichtfeld</p>
+      </div>
+      
+      <!-- Fehlermeldung für Checkboxen -->
+      <div id="checkbox-error" class="checkbox-error" style="display:none;"></div>
+      
       <!-- Submit -->
-      <button type="submit">Verbindlich buchen</button>
+      <button type="submit" class="btn-submit">Jetzt kostenpflichtig buchen</button>
       
       <!-- Nachrichten -->
       <div id="message" class="message" style="display:none;"></div>
@@ -174,8 +264,8 @@
     <div class="footer-section">
       <h5>Informationen</h5>
       <a href="https://www.metzenhof.at/unser-golfplatz/" target="_blank">Unser Golfplatz</a>
-      <a href="https://www.metzenhof.at/golf/gemma-golfn/" target="_blank">Gemma Golfn</a>
-      <a href="agb.html">AGB</a>
+      <a href="agb.html">AGB Kurs (GmbH)</a>
+      <a href="AGB Verein Golfpark Metzenhof.pdf" target="_blank">Statuten Verein</a>
       <a href="privacy.html">Datenschutz</a>
     </div>
     

@@ -2789,6 +2789,212 @@ a:focus-visible {
   font-weight: 500;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   BUCHUNGSFORMULAR – RECHTLICHE ELEMENTE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Bestellübersicht */
+.order-summary {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.order-summary h3 {
+  font-size: 1.1rem;
+  color: var(--color-primary);
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.order-label {
+  color: var(--color-text-muted);
+}
+
+.order-value {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.order-package {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(74, 140, 123, 0.05);
+  border-radius: 8px;
+}
+
+.order-package strong {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.order-package ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.order-package li {
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.order-price {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--color-primary);
+}
+
+.price-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.2rem;
+}
+
+.price-total strong {
+  color: var(--color-primary);
+  font-size: 1.5rem;
+}
+
+.price-breakdown {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+.order-partners {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+.order-partners small {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+/* Rechtliche Checkboxen */
+.legal-checkboxes {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.legal-checkboxes h4 {
+  font-size: 1rem;
+  color: var(--color-text);
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.legal-checkboxes .checkbox-item {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.legal-checkboxes .checkbox-item:hover {
+  background: rgba(74, 140, 123, 0.05);
+}
+
+.legal-checkboxes .checkbox-item span {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.checkbox-optional {
+  opacity: 0.8;
+  border-top: 1px dashed var(--color-border);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.checkbox-highlight {
+  background: rgba(212, 168, 75, 0.1);
+  border: 1px solid var(--color-warning);
+  border-radius: 8px;
+  padding: 0.75rem !important;
+}
+
+.checkbox-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+.checkbox-error {
+  background: rgba(196, 92, 92, 0.1);
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+/* Submit Button */
+.btn-submit {
+  width: 100%;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-submit:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+}
+
+.btn-submit:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Teilnehmer-Fieldsets */
+.participant-contact {
+  border-color: var(--color-primary);
+  background: rgba(74, 140, 123, 0.02);
+}
+
+.participant-additional {
+  border-color: var(--color-border);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
 /* Booking Hinweis */
 .booking-hinweis {
   margin-top: 1.5rem;
