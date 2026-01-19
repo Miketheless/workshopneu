@@ -422,7 +422,7 @@ function handleBook(payload) {
     const cancelToken = generateCancelToken();
     const timestamp = new Date().toISOString();
     
-    // Booking eintragen
+    // Booking eintragen (inkl. Gutscheincode)
     const bookingsSheet = getSheet(SHEET_BOOKINGS);
     bookingsSheet.appendRow([
       bookingId,
@@ -433,7 +433,13 @@ function handleBook(payload) {
       participantCount,
       "CONFIRMED",
       cancelToken,
-      "" // cancelled_at
+      "", // cancelled_at
+      false, // invoice_sent
+      false, // appeared
+      false, // membership_form
+      false, // dsgvo_form
+      "", // paid_date
+      payload.voucher_code || "" // Gutscheincode
     ]);
     
     // Participants eintragen
@@ -639,12 +645,13 @@ function handleAdminBookings(adminKey) {
       participants_count: row[5],
       status: row[6],
       cancelled_at: row[8],
-      // Neue Admin-Felder (Spalten 10-14, Index 9-13)
+      // Admin-Felder (Spalten 10-15, Index 9-14)
       invoice_sent: row[9] === true || row[9] === "TRUE" || row[9] === "true",
       appeared: row[10] === true || row[10] === "TRUE" || row[10] === "true",
       membership_form: row[11] === true || row[11] === "TRUE" || row[11] === "true",
       dsgvo_form: row[12] === true || row[12] === "TRUE" || row[12] === "true",
       paid_date: row[13] || "",
+      voucher_code: row[14] || "", // Gutscheincode
       // Teilnehmer
       participants: participantsByBooking[bookingId] || [],
       // Zeilennummer für Updates (1-indexed)
@@ -1064,7 +1071,7 @@ function handleAdminAddBooking(params) {
       const bookingId = generateBookingId();
       const timestamp = new Date().toISOString();
       
-      // Booking eintragen (mit Admin-Markierung)
+      // Booking eintragen (mit Admin-Markierung, inkl. Gutscheincode)
       const bookingsSheet = getSheet(SHEET_BOOKINGS);
       bookingsSheet.appendRow([
         bookingId,
@@ -1080,7 +1087,8 @@ function handleAdminAddBooking(params) {
         false, // appeared
         false, // membership_form
         false, // dsgvo_form
-        ""     // paid_date
+        "",    // paid_date
+        payload.voucher_code || "" // Gutscheincode
       ]);
       
       // Participants eintragen
@@ -1500,14 +1508,15 @@ function initSheets() {
     slotsSheet.appendRow(["slot_id", "date", "start", "end", "capacity", "booked", "status"]);
   }
   
-  // Bookings Sheet - mit Admin-Feldern
+  // Bookings Sheet - mit Admin-Feldern und Gutscheincode
   let bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
   if (!bookingsSheet) {
     bookingsSheet = ss.insertSheet(SHEET_BOOKINGS);
     bookingsSheet.appendRow([
       "booking_id", "timestamp", "slot_id", "contact_email", "contact_phone", 
       "participants_count", "status", "cancel_token", "cancelled_at",
-      "invoice_sent", "appeared", "membership_form", "dsgvo_form", "paid_date"
+      "invoice_sent", "appeared", "membership_form", "dsgvo_form", "paid_date",
+      "voucher_code"
     ]);
   }
   

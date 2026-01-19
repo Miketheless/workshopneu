@@ -72,6 +72,7 @@ const elements = {
   modalHouseNo: $("modal-house-no"),
   modalZip: $("modal-zip"),
   modalCity: $("modal-city"),
+  modalVoucherCode: $("modal-voucher-code"),
   modalMessage: $("modal-message")
 };
 
@@ -414,6 +415,7 @@ async function handleQuickBook(e) {
     slot_id: slotId,
     contact_email: elements.modalEmail.value.trim(),
     contact_phone: elements.modalPhone.value.trim(),
+    voucher_code: (elements.modalVoucherCode?.value || "").trim().toUpperCase(),
     participants: [{
       first_name: firstName,
       last_name: lastName,
@@ -485,6 +487,7 @@ function renderCombinedTable() {
         membership_form: b.membership_form,
         dsgvo_form: b.dsgvo_form,
         paid_date: b.paid_date,
+        voucher_code: b.voucher_code || "",
         participant_nr: 0,
         first_name: "(keine TN)",
         last_name: "",
@@ -506,6 +509,7 @@ function renderCombinedTable() {
           membership_form: b.membership_form,
           dsgvo_form: b.dsgvo_form,
           paid_date: b.paid_date,
+          voucher_code: b.voucher_code || "",
           participant_nr: i + 1,
           first_name: p.first_name || "",
           last_name: p.last_name || "",
@@ -539,6 +543,7 @@ function renderCombinedTable() {
           <th class="sortable-header vertical-header" data-column="city"><span>Ort</span> ${getSortIcon("city", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header vertical-header" data-column="contact_email"><span>E-Mail</span> ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header vertical-header" data-column="contact_phone"><span>Telefon</span> ${getSortIcon("contact_phone", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header vertical-header" data-column="voucher_code"><span>Gutschein</span> ${getSortIcon("voucher_code", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header vertical-header" data-column="invoice_sent"><span>Rechnung</span> ${getSortIcon("invoice_sent", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header vertical-header" data-column="appeared"><span>Erschienen</span> ${getSortIcon("appeared", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header vertical-header" data-column="membership_form"><span>Mitgliedschaft</span> ${getSortIcon("membership_form", combinedSortColumn, combinedSortDir)}</th>
@@ -564,6 +569,7 @@ function renderCombinedTable() {
               <td>${row.city || "–"}</td>
               <td><a href="mailto:${row.contact_email}">${row.contact_email || "–"}</a></td>
               <td>${row.contact_phone || "–"}</td>
+              <td>${row.voucher_code ? `<span style="background:#e7f5e7;padding:0.1rem 0.4rem;border-radius:3px;font-size:0.7rem;font-weight:600;color:#2e7d32;">${row.voucher_code}</span>` : "–"}</td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="invoice_sent" ${row.invoice_sent ? "checked" : ""} ${disabled}></td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="appeared" ${row.appeared ? "checked" : ""} ${disabled}></td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="membership_form" ${row.membership_form ? "checked" : ""} ${disabled}></td>

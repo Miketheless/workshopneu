@@ -655,7 +655,7 @@ function updateOrderSummary(count) {
  * Strukturiertes Booking-Payload für n8n erstellen
  * Enthält alle Infos für Outlook E-Mail-Versand
  */
-function buildBookingPayload(bookingId, slotId, participants, email, phone, termsAccepted) {
+function buildBookingPayload(bookingId, slotId, participants, email, phone, termsAccepted, voucherCode = "") {
   const count = participants.length;
   const contactPerson = participants[0] || {};
   const otherParticipants = participants.slice(1).map(p => ({
@@ -697,6 +697,9 @@ function buildBookingPayload(bookingId, slotId, participants, email, phone, term
       },
       others: otherParticipants
     },
+    
+    // Gutscheincode (falls vorhanden)
+    voucher_code: voucherCode || "",
     
     // Preise
     pricing: {
@@ -918,12 +921,16 @@ async function handleSubmit(e) {
       user_agent: navigator.userAgent
     };
     
+    // Gutscheincode auslesen (optional)
+    const voucherCode = (formData.get("voucher_code") || "").trim().toUpperCase();
+    
     const payload = {
       slot_id: slotId,
       contact_email: email,
       contact_phone: phone,
       participants_count: count,
       participants: participants,
+      voucher_code: voucherCode, // Gutscheincode
       // Rückwärtskompatibilität für Backend
       agb_accepted: true,
       privacy_accepted: true,
@@ -962,7 +969,8 @@ async function handleSubmit(e) {
           participants,
           email,
           phone,
-          termsAccepted
+          termsAccepted,
+          voucherCode
         );
         
         // Webhook async triggern (Buchung ist bereits gespeichert)

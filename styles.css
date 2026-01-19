@@ -2948,6 +2948,49 @@ a:focus-visible {
    BUCHUNGSFORMULAR – RECHTLICHE ELEMENTE
    ══════════════════════════════════════════════════════════════════════════════ */
 
+/* Gutscheincode-Sektion */
+.voucher-section {
+  margin: 1.5rem 0;
+}
+
+.voucher-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.voucher-icon {
+  font-size: 1.1rem;
+}
+
+.voucher-label input {
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-primary-light);
+  border-radius: 8px;
+  background: #f9fdfb;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: var(--transition);
+}
+
+.voucher-label input:focus {
+  border-style: solid;
+  border-color: var(--color-primary);
+  background: white;
+  outline: none;
+}
+
+.voucher-label input::placeholder {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 /* Bestellübersicht */
 .order-summary {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
