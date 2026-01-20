@@ -752,7 +752,31 @@ elements.exportBtn.addEventListener("click", async () => {
     elements.exportBtn.textContent = "Exportiere...";
     
     const response = await fetch(`${API_BASE}?action=admin_export_csv&admin_key=${encodeURIComponent(currentAdminKey)}`);
-    const data = await response.json();
+    const text = await response.text();
+    
+    // Versuche JSON zu parsen
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      // Falls kein JSON: Vielleicht ist es direkt CSV (alte Version)
+      if (text.includes(";") && text.includes("\n")) {
+        // Sieht aus wie CSV - direkt herunterladen
+        const blob = new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `platzerlaubnis_buchungen_${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      }
+      console.error("Server-Antwort:", text.substring(0, 500));
+      alert("Export-Fehler: Server hat kein gültiges Format zurückgegeben.\n\nBitte neue Bereitstellung in Apps Script erstellen!");
+      return;
+    }
     
     if (data.success && data.csv) {
       // CSV als Datei herunterladen
@@ -769,6 +793,7 @@ elements.exportBtn.addEventListener("click", async () => {
       alert("Export fehlgeschlagen: " + (data.error || "Unbekannter Fehler"));
     }
   } catch (err) {
+    console.error("Export-Fehler:", err);
     alert("Export-Fehler: " + err.message);
   } finally {
     elements.exportBtn.disabled = false;
