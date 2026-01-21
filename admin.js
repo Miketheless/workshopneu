@@ -538,17 +538,17 @@ function renderCombinedTable() {
   // Hilfsfunktion für Bezahlt-Anzeige (Datum anzeigen wenn gesetzt, sonst Input)
   function renderPaidDateCell(bookingId, paidDate, disabled, fieldName) {
     if (paidDate && !disabled) {
-      // Datum ist gesetzt - zeige es an mit Möglichkeit zum Ändern
+      // Datum ist gesetzt - zeige es als grünes Badge mit Klick zum Ändern
       const formattedDate = formatDate(paidDate);
       return `
-        <div class="paid-date-display" style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <span style="background:#d4edda;padding:0.15rem 0.4rem;border-radius:3px;font-size:0.7rem;font-weight:600;color:#155724;">${formattedDate}</span>
-          <input type="date" class="admin-date" data-id="${bookingId}" data-field="${fieldName}" value="${paidDate}" style="font-size:0.6rem;padding:0.1rem;max-width:95px;" title="Datum ändern">
+        <div class="paid-date-set" title="Klicken zum Ändern">
+          <span style="background:#d4edda;padding:0.1rem 0.25rem;border-radius:3px;font-size:0.6rem;font-weight:600;color:#155724;display:inline-block;">${formattedDate}</span>
+          <input type="date" class="admin-date" data-id="${bookingId}" data-field="${fieldName}" value="${paidDate}" style="position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;cursor:pointer;">
         </div>
       `;
     } else if (disabled && paidDate) {
       // Storniert aber Datum war gesetzt
-      return `<span style="text-decoration:line-through;color:#999;font-size:0.7rem;">${formatDate(paidDate)}</span>`;
+      return `<span style="text-decoration:line-through;color:#999;font-size:0.6rem;">${formatDate(paidDate)}</span>`;
     } else {
       // Kein Datum - zeige Input
       return `<input type="date" class="admin-date" data-id="${bookingId}" data-field="${fieldName}" value="${paidDate || ""}" ${disabled ? "disabled" : ""} title="Bezahldatum">`;
@@ -570,10 +570,10 @@ function renderCombinedTable() {
           <th class="sortable-header" data-column="contact_email">E-Mail ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="contact_phone">Telefon ${getSortIcon("contact_phone", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="voucher_code">Gutschein ${getSortIcon("voucher_code", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header col-center" data-column="invoice_sent_gmbh">Rechnung GmbH ${getSortIcon("invoice_sent_gmbh", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header col-center" data-column="paid_date_gmbh">Bezahlt GmbH ${getSortIcon("paid_date_gmbh", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header col-center" data-column="invoice_sent_club">Rechnung Club ${getSortIcon("invoice_sent_club", combinedSortColumn, combinedSortDir)}</th>
-          <th class="sortable-header col-center" data-column="paid_date_club">Bezahlt Club ${getSortIcon("paid_date_club", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header col-center" data-column="invoice_sent_gmbh" title="Rechnung GmbH">Re.GmbH ${getSortIcon("invoice_sent_gmbh", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header col-center" data-column="paid_date_gmbh" title="Bezahlt GmbH">Bez.GmbH ${getSortIcon("paid_date_gmbh", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header col-center" data-column="invoice_sent_club" title="Rechnung Club">Re.Club ${getSortIcon("invoice_sent_club", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header col-center" data-column="paid_date_club" title="Bezahlt Club">Bez.Club ${getSortIcon("paid_date_club", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="appeared">Erschienen ${getSortIcon("appeared", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="status">Status ${getSortIcon("status", combinedSortColumn, combinedSortDir)}</th>
           <th>Aktion</th>

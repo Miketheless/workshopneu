@@ -105,22 +105,41 @@
       text-decoration: line-through;
     }
     
-    /* Kombinierte Tabelle */
+    /* Kombinierte Tabelle - kompakt für alle Spalten */
     .admin-table.combined-table {
-      min-width: 1600px;
+      min-width: auto;
+      width: 100%;
+      table-layout: auto;
     }
     
     .admin-table.combined-table th,
     .admin-table.combined-table td {
-      padding: 0.4rem 0.3rem;
-      font-size: 0.75rem;
+      padding: 0.3rem 0.2rem;
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+    
+    .admin-table.combined-table th {
+      font-size: 0.65rem;
+      padding: 0.4rem 0.2rem;
+      min-width: auto;
     }
     
     .admin-table.combined-table td {
-      max-width: 120px;
+      max-width: 100px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    
+    /* Kompaktere Spalten für bestimmte Felder */
+    .admin-table.combined-table td:nth-child(1) { max-width: 70px; } /* Termin */
+    .admin-table.combined-table td:nth-child(2) { max-width: 75px; } /* Buchung */
+    .admin-table.combined-table td:nth-child(5) { max-width: 90px; } /* Adresse */
+    .admin-table.combined-table td:nth-child(6) { max-width: 45px; } /* PLZ */
+    .admin-table.combined-table td:nth-child(7) { max-width: 70px; } /* Ort */
+    .admin-table.combined-table td:nth-child(8) { max-width: 120px; } /* E-Mail */
+    .admin-table.combined-table td:nth-child(9) { max-width: 85px; } /* Telefon */
+    .admin-table.combined-table td:nth-child(10) { max-width: 60px; } /* Gutschein */
     
     /* Sort Icons in Headers */
     .admin-table th .sort-icon {
@@ -133,10 +152,10 @@
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
-      width: 20px;
-      height: 20px;
-      min-width: 20px;
-      min-height: 20px;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
       border: 2px solid #bbb;
       border-radius: 3px;
       background: white;
@@ -179,11 +198,11 @@
     
     .admin-date {
       width: 100%;
-      max-width: 120px;
-      padding: 0.3rem 0.4rem;
+      max-width: 95px;
+      padding: 0.2rem 0.25rem;
       border: 1px solid #ccc;
       border-radius: 4px;
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       background: white;
       cursor: pointer;
     }
@@ -202,6 +221,17 @@
       background: #f5f5f5;
       cursor: not-allowed;
       opacity: 0.6;
+    }
+    
+    /* Bezahlt-Datum wenn gesetzt */
+    .paid-date-set {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+    }
+    
+    .paid-date-set:hover span {
+      background: #c3e6cb !important;
     }
     
     /* Buttons */
@@ -621,6 +651,28 @@
     }
     
     /* Responsive */
+    @media (max-width: 1400px) {
+      .admin-table.combined-table th,
+      .admin-table.combined-table td {
+        padding: 0.25rem 0.15rem;
+        font-size: 0.65rem;
+      }
+      .admin-table.combined-table th {
+        font-size: 0.6rem;
+      }
+      .admin-date {
+        max-width: 85px;
+        font-size: 0.6rem;
+        padding: 0.15rem 0.2rem;
+      }
+      .admin-checkbox {
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
+        min-height: 16px;
+      }
+    }
+    
     @media (max-width: 768px) {
       .admin-table { min-width: 900px; font-size: 0.7rem; }
       .calendar-grid { grid-template-columns: repeat(7, 1fr); }
