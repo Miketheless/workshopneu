@@ -765,10 +765,12 @@ function handleAdminUpdate(params) {
   // Spalten: J=10, K=11, L=12, M=13, N=14, O=15, P=16, Q=17
   const fieldMap = {
     "invoice_sent_gmbh": 10,  // Spalte J (10) - Rechnung GmbH
+    "invoice_sent": 10,       // Alias für Abwärtskompatibilität
     "appeared": 11,           // Spalte K (11)
     "membership_form": 12,    // Spalte L (12)
     "dsgvo_form": 13,         // Spalte M (13)
     "paid_date_gmbh": 14,     // Spalte N (14) - Bezahlt GmbH
+    "paid_date": 14,          // Alias für Abwärtskompatibilität
     "voucher_code": 15,       // Spalte O (15)
     "invoice_sent_club": 16,  // Spalte P (16) - Rechnung Club (NEU)
     "paid_date_club": 17      // Spalte Q (17) - Bezahlt Club (NEU)
@@ -801,7 +803,9 @@ function handleAdminUpdate(params) {
     
     // Wert setzen
     let finalValue = value;
-    if (field !== "paid_date_gmbh" && field !== "paid_date_club" && field !== "voucher_code") {
+    // Datum- und Text-Felder: Wert direkt übernehmen
+    const textFields = ["paid_date_gmbh", "paid_date_club", "paid_date", "voucher_code"];
+    if (!textFields.includes(field)) {
       // Boolean für Checkboxen
       finalValue = (value === "true" || value === true);
     }
@@ -1755,6 +1759,43 @@ function upgradeBookingsSheet() {
  * WICHTIG: Bestehende Buchungen bleiben erhalten!
  * ══════════════════════════════════════════════════════════════════════════════
  */
+/**
+ * TEST-FUNKTION: Prüft ob die neue Version aktiv ist
+ * Im Script-Editor ausführen und Logs prüfen!
+ */
+function testFieldMap() {
+  const fieldMap = {
+    "invoice_sent_gmbh": 10,
+    "invoice_sent": 10,
+    "appeared": 11,
+    "membership_form": 12,
+    "dsgvo_form": 13,
+    "paid_date_gmbh": 14,
+    "paid_date": 14,
+    "voucher_code": 15,
+    "invoice_sent_club": 16,
+    "paid_date_club": 17
+  };
+  
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🧪 TEST: Neue Backend-Version aktiv?");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("✓ paid_date_gmbh vorhanden:", fieldMap["paid_date_gmbh"] !== undefined);
+  console.log("✓ paid_date_club vorhanden:", fieldMap["paid_date_club"] !== undefined);
+  console.log("✓ invoice_sent_gmbh vorhanden:", fieldMap["invoice_sent_gmbh"] !== undefined);
+  console.log("✓ invoice_sent_club vorhanden:", fieldMap["invoice_sent_club"] !== undefined);
+  console.log("");
+  console.log("Spalten-Zuordnung:");
+  for (const [key, val] of Object.entries(fieldMap)) {
+    console.log(`   ${key} → Spalte ${val}`);
+  }
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("✅ Wenn du das siehst, ist die NEUE Version aktiv!");
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  return { success: true, message: "Neue Version aktiv!" };
+}
+
 function upgradeBookingsSheetWithClubColumns() {
   const sheet = getSheet(SHEET_BOOKINGS);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
