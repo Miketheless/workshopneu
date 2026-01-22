@@ -68,6 +68,7 @@ const elements = {
   modalSlotFree: $("modal-slot-free"),
   modalFirstName: $("modal-first-name"),
   modalLastName: $("modal-last-name"),
+  modalBirthdate: $("modal-birthdate"),
   modalEmail: $("modal-email"),
   modalPhone: $("modal-phone"),
   modalStreet: $("modal-street"),
@@ -140,13 +141,13 @@ function sortData(data, column, direction) {
     let valA = a[column] ?? "";
     let valB = b[column] ?? "";
     
-    if (["timestamp", "cancelled_at", "slot_id", "paid_date_gmbh", "paid_date_club"].includes(column)) {
+    if (["timestamp", "cancelled_at", "slot_id", "paid_date_gmbh", "paid_date_club", "birthdate"].includes(column)) {
       valA = new Date(valA || 0).getTime();
       valB = new Date(valB || 0).getTime();
     } else if (["participants_count", "participant_nr"].includes(column)) {
       valA = parseInt(valA) || 0;
       valB = parseInt(valB) || 0;
-    } else if (["invoice_sent_gmbh", "invoice_sent_club", "appeared", "membership_form", "dsgvo_form"].includes(column)) {
+    } else if (["invoice_sent_gmbh", "invoice_sent_club", "appeared", "membership_form", "dsgvo_form", "newsletter"].includes(column)) {
       valA = valA ? 1 : 0;
       valB = valB ? 1 : 0;
     } else {
@@ -421,6 +422,7 @@ async function handleQuickBook(e) {
     participants: [{
       first_name: firstName,
       last_name: lastName,
+      birthdate: elements.modalBirthdate?.value || "",
       street: elements.modalStreet.value.trim(),
       house_no: elements.modalHouseNo.value.trim(),
       zip: elements.modalZip.value.trim(),
@@ -492,13 +494,16 @@ function renderCombinedTable() {
         invoice_sent_club: b.invoice_sent_club,
         paid_date_club: b.paid_date_club,
         voucher_code: b.voucher_code || "",
+        newsletter: b.newsletter,
         participant_nr: 0,
         first_name: "(keine TN)",
         last_name: "",
+        birthdate: "",
         street: "",
         house_no: "",
         zip: "",
-        city: ""
+        city: "",
+        country: ""
       });
     } else {
       participants.forEach((p, i) => {
@@ -516,13 +521,16 @@ function renderCombinedTable() {
           invoice_sent_club: b.invoice_sent_club,
           paid_date_club: b.paid_date_club,
           voucher_code: b.voucher_code || "",
+          newsletter: b.newsletter,
           participant_nr: i + 1,
           first_name: p.first_name || "",
           last_name: p.last_name || "",
+          birthdate: p.birthdate || "",
           street: p.street || "",
           house_no: p.house_no || "",
           zip: p.zip || "",
-          city: p.city || ""
+          city: p.city || "",
+          country: p.country || "AT"
         });
       });
     }
@@ -567,13 +575,16 @@ function renderCombinedTable() {
           <th class="sortable-header" data-column="street">Adresse ${getSortIcon("street", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="zip">PLZ ${getSortIcon("zip", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="city">Ort ${getSortIcon("city", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header" data-column="country">Land ${getSortIcon("country", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="contact_email">E-Mail ${getSortIcon("contact_email", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="contact_phone">Telefon ${getSortIcon("contact_phone", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header" data-column="birthdate">Geburtstag ${getSortIcon("birthdate", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header" data-column="voucher_code">Gutschein ${getSortIcon("voucher_code", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="invoice_sent_gmbh" title="Rechnung GmbH">Re.GmbH ${getSortIcon("invoice_sent_gmbh", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="paid_date_gmbh" title="Bezahlt GmbH">Bez.GmbH ${getSortIcon("paid_date_gmbh", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="invoice_sent_club" title="Rechnung Club">Re.Club ${getSortIcon("invoice_sent_club", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="paid_date_club" title="Bezahlt Club">Bez.Club ${getSortIcon("paid_date_club", combinedSortColumn, combinedSortDir)}</th>
+          <th class="sortable-header col-center" data-column="newsletter" title="Newsletter">NL ${getSortIcon("newsletter", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="appeared">Erschienen ${getSortIcon("appeared", combinedSortColumn, combinedSortDir)}</th>
           <th class="sortable-header col-center" data-column="status">Status ${getSortIcon("status", combinedSortColumn, combinedSortDir)}</th>
           <th>Aktion</th>
@@ -594,13 +605,16 @@ function renderCombinedTable() {
               <td>${addressStr}</td>
               <td>${row.zip || "–"}</td>
               <td>${row.city || "–"}</td>
+              <td>${row.country || "AT"}</td>
               <td><a href="mailto:${row.contact_email}">${row.contact_email || "–"}</a></td>
               <td>${row.contact_phone || "–"}</td>
+              <td>${row.birthdate ? formatDate(row.birthdate) : "–"}</td>
               <td>${row.voucher_code ? `<span style="background:#e7f5e7;padding:0.1rem 0.4rem;border-radius:3px;font-size:0.7rem;font-weight:600;color:#2e7d32;">${row.voucher_code}</span>` : "–"}</td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="invoice_sent_gmbh" ${row.invoice_sent_gmbh ? "checked" : ""} ${disabled} title="Rechnung GmbH gesendet"></td>
               <td class="col-center">${renderPaidDateCell(row.booking_id, row.paid_date_gmbh, cancelled, "paid_date_gmbh")}</td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="invoice_sent_club" ${row.invoice_sent_club ? "checked" : ""} ${disabled} title="Rechnung Club gesendet"></td>
               <td class="col-center">${renderPaidDateCell(row.booking_id, row.paid_date_club, cancelled, "paid_date_club")}</td>
+              <td class="col-center">${row.newsletter ? '<span style="background:#d4edda;padding:0.1rem 0.3rem;border-radius:3px;font-size:0.6rem;color:#155724;">✓</span>' : '<span style="color:#999;">–</span>'}</td>
               <td class="col-center"><input type="checkbox" class="admin-checkbox" data-id="${row.booking_id}" data-field="appeared" ${row.appeared ? "checked" : ""} ${disabled} title="Teilnehmer erschienen"></td>
               <td class="col-center"><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "✕" : "✓"}</span></td>
               <td class="col-center">

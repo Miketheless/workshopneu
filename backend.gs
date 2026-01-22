@@ -422,7 +422,8 @@ function handleBook(payload) {
     const cancelToken = generateCancelToken();
     const timestamp = new Date().toISOString();
     
-    // Booking eintragen (inkl. Gutscheincode und Club-Felder)
+    // Booking eintragen (inkl. Gutscheincode, Club-Felder, Newsletter und rechtliche Zustimmungen)
+    const terms = payload.terms_accepted || {};
     const bookingsSheet = getSheet(SHEET_BOOKINGS);
     bookingsSheet.appendRow([
       bookingId,
@@ -440,8 +441,20 @@ function handleBook(payload) {
       false, // dsgvo_form
       "", // paid_date_gmbh
       payload.voucher_code || "", // Gutscheincode
-      false, // invoice_sent_club (NEU)
-      "" // paid_date_club (NEU)
+      false, // invoice_sent_club
+      "", // paid_date_club
+      terms.newsletter || false, // Newsletter-Anmeldung
+      // Rechtliche Zustimmungen
+      terms.agb_kurs || false,
+      terms.privacy_accepted || false,
+      terms.membership_statutes || false,
+      terms.partner_awareness || false,
+      terms.cancellation_notice || false,
+      terms.fagg_consent || false,
+      terms.third_party_consent || null,
+      terms.accepted_at || "",
+      terms.terms_version || "",
+      terms.user_agent || ""
     ]);
     
     // Participants eintragen
@@ -452,10 +465,12 @@ function handleBook(payload) {
         idx + 1,
         p.first_name,
         p.last_name,
+        p.birthdate || "",
         p.street,
         p.house_no,
         p.zip,
-        p.city
+        p.city,
+        p.country || "AT"
       ]);
     });
     
@@ -622,10 +637,12 @@ function handleAdminBookings(adminKey) {
       idx: participantsData[i][1],
       first_name: participantsData[i][2],
       last_name: participantsData[i][3],
-      street: participantsData[i][4],
-      house_no: participantsData[i][5],
-      zip: participantsData[i][6],
-      city: participantsData[i][7]
+      birthdate: participantsData[i][4] || "",
+      street: participantsData[i][5],
+      house_no: participantsData[i][6],
+      zip: participantsData[i][7],
+      city: participantsData[i][8],
+      country: participantsData[i][9] || "AT"
     });
   }
   
@@ -647,7 +664,7 @@ function handleAdminBookings(adminKey) {
       participants_count: row[5],
       status: row[6],
       cancelled_at: row[8],
-      // Admin-Felder (Spalten 10-17, Index 9-16)
+      // Admin-Felder (Spalten 10-28, Index 9-27)
       invoice_sent_gmbh: row[9] === true || row[9] === "TRUE" || row[9] === "true",
       appeared: row[10] === true || row[10] === "TRUE" || row[10] === "true",
       membership_form: row[11] === true || row[11] === "TRUE" || row[11] === "true",
@@ -656,6 +673,18 @@ function handleAdminBookings(adminKey) {
       voucher_code: row[14] || "",
       invoice_sent_club: row[15] === true || row[15] === "TRUE" || row[15] === "true",
       paid_date_club: row[16] || "",
+      newsletter: row[17] === true || row[17] === "TRUE" || row[17] === "true",
+      // Rechtliche Zustimmungen
+      agb_kurs: row[18] === true || row[18] === "TRUE" || row[18] === "true",
+      privacy_accepted: row[19] === true || row[19] === "TRUE" || row[19] === "true",
+      membership_statutes: row[20] === true || row[20] === "TRUE" || row[20] === "true",
+      partner_awareness: row[21] === true || row[21] === "TRUE" || row[21] === "true",
+      cancellation_notice: row[22] === true || row[22] === "TRUE" || row[22] === "true",
+      fagg_consent: row[23] === true || row[23] === "TRUE" || row[23] === "true",
+      third_party_consent: row[24] === true || row[24] === "TRUE" || row[24] === "true" || row[24] === null,
+      accepted_at: row[25] || "",
+      terms_version: row[26] || "",
+      user_agent: row[27] || "",
       // Teilnehmer
       participants: participantsByBooking[bookingId] || [],
       // Zeilennummer für Updates (1-indexed)
@@ -1083,7 +1112,7 @@ function handleAdminAddBooking(params) {
       const bookingId = generateBookingId();
       const timestamp = new Date().toISOString();
       
-      // Booking eintragen (mit Admin-Markierung, inkl. Gutscheincode und Club-Felder)
+      // Booking eintragen (mit Admin-Markierung, inkl. Gutscheincode, Club-Felder und rechtliche Zustimmungen)
       const bookingsSheet = getSheet(SHEET_BOOKINGS);
       bookingsSheet.appendRow([
         bookingId,
@@ -1101,8 +1130,20 @@ function handleAdminAddBooking(params) {
         false, // dsgvo_form
         "",    // paid_date_gmbh
         payload.voucher_code || "", // Gutscheincode
-        false, // invoice_sent_club (NEU)
-        ""     // paid_date_club (NEU)
+        false, // invoice_sent_club
+        "",    // paid_date_club
+        false, // Newsletter
+        // Rechtliche Zustimmungen (bei Admin-Buchung alle leer/false)
+        false, // agb_kurs
+        false, // privacy_accepted
+        false, // membership_statutes
+        false, // partner_awareness
+        false, // cancellation_notice
+        false, // fagg_consent
+        null,  // third_party_consent
+        "",    // accepted_at
+        "ADMIN", // terms_version
+        ""     // user_agent
       ]);
       
       // Participants eintragen
@@ -1113,10 +1154,12 @@ function handleAdminAddBooking(params) {
           idx + 1,
           p.first_name || "",
           p.last_name || "",
+          p.birthdate || "",
           p.street || "",
           p.house_no || "",
           p.zip || "",
-          p.city || ""
+          p.city || "",
+          p.country || "AT"
         ]);
       });
       
@@ -1708,7 +1751,10 @@ function initSheets() {
       "booking_id", "timestamp", "slot_id", "contact_email", "contact_phone", 
       "participants_count", "status", "cancel_token", "cancelled_at",
       "invoice_sent_gmbh", "appeared", "membership_form", "dsgvo_form", "paid_date_gmbh",
-      "voucher_code", "invoice_sent_club", "paid_date_club"
+      "voucher_code", "invoice_sent_club", "paid_date_club", "newsletter",
+      "agb_kurs", "privacy_accepted", "membership_statutes", "partner_awareness",
+      "cancellation_notice", "fagg_consent", "third_party_consent", "accepted_at",
+      "terms_version", "user_agent"
     ]);
   }
   
@@ -1716,7 +1762,7 @@ function initSheets() {
   let participantsSheet = ss.getSheetByName(SHEET_PARTICIPANTS);
   if (!participantsSheet) {
     participantsSheet = ss.insertSheet(SHEET_PARTICIPANTS);
-    participantsSheet.appendRow(["booking_id", "idx", "first_name", "last_name", "street", "house_no", "zip", "city"]);
+    participantsSheet.appendRow(["booking_id", "idx", "first_name", "last_name", "birthdate", "street", "house_no", "zip", "city", "country"]);
   }
   
   // Settings Sheet
@@ -1794,6 +1840,187 @@ function testFieldMap() {
   console.log("═══════════════════════════════════════════════════════════");
   
   return { success: true, message: "Neue Version aktiv!" };
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * UPGRADE: Participants Sheet um Geburtstag-Spalte erweitern
+ * Einmalig ausführen für bestehende Sheets!
+ * WICHTIG: Bestehende Daten werden NICHT verändert, nur Spalte eingefügt!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * UPGRADE: Bookings Sheet um Newsletter-Spalte erweitern
+ * Einmalig ausführen für bestehende Sheets!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function upgradeBookingsWithNewsletter() {
+  const sheet = getSheet(SHEET_BOOKINGS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🔄 UPGRADE: Bookings Sheet mit Newsletter-Spalte");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("Aktuelle Header:", headers.join(", "));
+  
+  // Prüfen ob Newsletter-Spalte bereits existiert
+  if (headers.includes("newsletter")) {
+    console.log("✓ Newsletter-Spalte bereits vorhanden!");
+    return { success: true, message: "Spalte bereits vorhanden" };
+  }
+  
+  // Neue Spalte am Ende hinzufügen
+  const lastCol = sheet.getLastColumn();
+  sheet.getRange(1, lastCol + 1).setValue("newsletter");
+  
+  console.log(`✅ Spalte 'newsletter' an Position ${lastCol + 1} hinzugefügt!`);
+  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  return { success: true, message: "Newsletter-Spalte hinzugefügt" };
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * UPGRADE: Participants Sheet um Country-Spalte erweitern
+ * Einmalig ausführen für bestehende Sheets!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function upgradeParticipantsWithCountry() {
+  const sheet = getSheet(SHEET_PARTICIPANTS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🔄 UPGRADE: Participants Sheet mit Country-Spalte");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("Aktuelle Header:", headers.join(", "));
+  
+  if (headers.includes("country")) {
+    console.log("✓ Country-Spalte bereits vorhanden!");
+    return { success: true, message: "Spalte bereits vorhanden" };
+  }
+  
+  const lastCol = sheet.getLastColumn();
+  sheet.getRange(1, lastCol + 1).setValue("country");
+  
+  console.log(`✅ Spalte 'country' an Position ${lastCol + 1} hinzugefügt!`);
+  return { success: true, message: "Country-Spalte hinzugefügt" };
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * UPGRADE: Bookings Sheet um rechtliche Zustimmungs-Spalten erweitern
+ * Einmalig ausführen für bestehende Sheets!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function upgradeBookingsWithLegalConsents() {
+  const sheet = getSheet(SHEET_BOOKINGS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🔄 UPGRADE: Bookings Sheet mit rechtlichen Zustimmungs-Spalten");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("Aktuelle Header:", headers.join(", "));
+  
+  const newColumns = [
+    "agb_kurs", "privacy_accepted", "membership_statutes", "partner_awareness",
+    "cancellation_notice", "fagg_consent", "third_party_consent", "accepted_at",
+    "terms_version", "user_agent"
+  ];
+  
+  let addedCount = 0;
+  let lastCol = sheet.getLastColumn();
+  
+  newColumns.forEach(col => {
+    if (!headers.includes(col)) {
+      lastCol++;
+      sheet.getRange(1, lastCol).setValue(col);
+      console.log(`   + Spalte '${col}' hinzugefügt`);
+      addedCount++;
+    }
+  });
+  
+  if (addedCount === 0) {
+    console.log("✓ Alle Spalten bereits vorhanden!");
+  } else {
+    console.log(`\n✅ ${addedCount} neue Spalten hinzugefügt!`);
+  }
+  
+  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  return { success: true, added: addedCount };
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * MASTER-UPGRADE: Führt alle Upgrade-Funktionen aus
+ * Einmalig ausführen um alle Sheets zu aktualisieren!
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+function upgradeAllSheets() {
+  console.log("╔═══════════════════════════════════════════════════════════╗");
+  console.log("║           MASTER-UPGRADE: Alle Sheets aktualisieren       ║");
+  console.log("╚═══════════════════════════════════════════════════════════╝\n");
+  
+  console.log("1️⃣ Bookings: Club-Spalten...");
+  upgradeBookingsSheetWithClubColumns();
+  
+  console.log("\n2️⃣ Bookings: Newsletter-Spalte...");
+  upgradeBookingsWithNewsletter();
+  
+  console.log("\n3️⃣ Bookings: Rechtliche Zustimmungen...");
+  upgradeBookingsWithLegalConsents();
+  
+  console.log("\n4️⃣ Participants: Birthdate-Spalte...");
+  upgradeParticipantsWithBirthdate();
+  
+  console.log("\n5️⃣ Participants: Country-Spalte...");
+  upgradeParticipantsWithCountry();
+  
+  console.log("\n╔═══════════════════════════════════════════════════════════╗");
+  console.log("║           ✅ ALLE UPGRADES ABGESCHLOSSEN!                  ║");
+  console.log("╚═══════════════════════════════════════════════════════════╝");
+  
+  return { success: true, message: "Alle Sheets aktualisiert!" };
+}
+
+function upgradeParticipantsWithBirthdate() {
+  const sheet = getSheet(SHEET_PARTICIPANTS);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("🔄 UPGRADE: Participants Sheet mit Geburtstag-Spalte");
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("Aktuelle Header:", headers.join(", "));
+  
+  // Prüfen ob Geburtstag-Spalte bereits existiert
+  if (headers.includes("birthdate")) {
+    console.log("✓ Geburtstag-Spalte bereits vorhanden!");
+    return { success: true, message: "Spalte bereits vorhanden" };
+  }
+  
+  // Spalte nach "last_name" (Index 3, also Spalte D) einfügen
+  // Neue Spalte E wird eingefügt, alle danach verschieben sich
+  const lastNameIndex = headers.indexOf("last_name");
+  if (lastNameIndex === -1) {
+    console.log("❌ Spalte 'last_name' nicht gefunden!");
+    return { success: false, message: "last_name Spalte nicht gefunden" };
+  }
+  
+  // Neue Spalte nach last_name einfügen (Spalte E = Index 5)
+  const insertColumn = lastNameIndex + 2; // +1 für 1-basiert, +1 für "nach"
+  sheet.insertColumnAfter(lastNameIndex + 1);
+  
+  // Header setzen
+  sheet.getRange(1, insertColumn).setValue("birthdate");
+  
+  console.log(`✅ Spalte 'birthdate' an Position ${insertColumn} eingefügt!`);
+  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
+  console.log("═══════════════════════════════════════════════════════════");
+  
+  return { success: true, message: "Geburtstag-Spalte hinzugefügt" };
 }
 
 function upgradeBookingsSheetWithClubColumns() {
