@@ -24,7 +24,7 @@ const SPREADSHEET_ID = "1NkaviS-fPq_A04HntatthchUYgjTto04Adicd-LvmBg"
 
 // Sheet-Namen
 const SHEET_SLOTS = "Slots";
-const SHEET_BOOKINGS = "Bookings";
+const SHEET_BOOKINGS = "Bookings"; 
 const SHEET_PARTICIPANTS = "Participants";
 const SHEET_SETTINGS = "Settings";
 
@@ -633,11 +633,21 @@ function handleAdminBookings(adminKey) {
     if (!participantsByBooking[bookingId]) {
       participantsByBooking[bookingId] = [];
     }
+    // Geburtsdatum korrekt formatieren (Zeitzonenprobleme vermeiden)
+    let birthdate = participantsData[i][4];
+    if (birthdate instanceof Date) {
+      // Date-Objekt zu YYYY-MM-DD String konvertieren (lokale Zeitzone)
+      const y = birthdate.getFullYear();
+      const m = String(birthdate.getMonth() + 1).padStart(2, '0');
+      const d = String(birthdate.getDate()).padStart(2, '0');
+      birthdate = `${y}-${m}-${d}`;
+    }
+    
     participantsByBooking[bookingId].push({
       idx: participantsData[i][1],
       first_name: participantsData[i][2],
       last_name: participantsData[i][3],
-      birthdate: participantsData[i][4] || "",
+      birthdate: birthdate || "",
       street: participantsData[i][5],
       house_no: participantsData[i][6],
       zip: participantsData[i][7],
