@@ -13,9 +13,9 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  SCRIPT_BASE: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
+  SCRIPT_BASE: "https://script.google.com/macros/s/AKfycbzzN5zS2802FgcA0k3pGaLJ4a-xTiYte3uEYy846IScsKT5CqDpzdUTXKvptxlKeoQW/exec",
   MAX_PARTICIPANTS: 4,
-  BASE_URL: "https://YOUR-GITHUB-USERNAME.github.io/workshop"
+  BASE_URL: "https://miketheless.github.io/workshopneu"
 };
 
 // ══════════════════════════════════════════════════════════════════════════════

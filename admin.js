@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════════════════════════
  */
 
-const SCRIPT_BASE = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+const SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbzzN5zS2802FgcA0k3pGaLJ4a-xTiYte3uEYy846IScsKT5CqDpzdUTXKvptxlKeoQW/exec";
 
 let currentAdminKey = "";
 let bookingsData = [];

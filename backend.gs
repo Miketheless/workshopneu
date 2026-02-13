@@ -12,7 +12,8 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-const SPREADSHEET_ID = "DEINE_SPREADSHEET_ID";
+// WICHTIG: Ersetze durch deine echte Sheet-ID (zwischen /d/ und /edit in der URL)
+const SPREADSHEET_ID = "1wM-yIR0EkbqPoAX9262P0wOF4QgPLS8RSElQK1hmmBU";
 
 const SHEET_WORKSHOPS = "Workshops";
 const SHEET_SLOTS = "Slots";
@@ -27,7 +28,20 @@ const MAX_PARTICIPANTS = 4;
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getSpreadsheet() {
-  return SpreadsheetApp.openById(SPREADSHEET_ID);
+  // Fallback: Wenn Skript aus dem Sheet heraus läuft (Erweiterungen → Apps Script)
+  try {
+    const active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) return active;
+  } catch (_) {}
+  
+  if (!SPREADSHEET_ID || SPREADSHEET_ID === "DEINE_SPREADSHEET_ID") {
+    throw new Error("SPREADSHEET_ID nicht gesetzt! Öffne backend.gs (Zeile 15) und trage die ID aus der Sheet-URL ein (zwischen /d/ und /edit). Beispiel: const SPREADSHEET_ID = \"1abc123...\";");
+  }
+  try {
+    return SpreadsheetApp.openById(SPREADSHEET_ID.trim());
+  } catch (e) {
+    throw new Error("Spreadsheet nicht gefunden. Prüfe SPREADSHEET_ID – korrekt? Keine Leerzeichen? Zugriff auf das Sheet? Originalfehler: " + e.message);
+  }
 }
 
 function getSheet(name) {
