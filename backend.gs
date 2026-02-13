@@ -86,11 +86,13 @@ function extractSlotDateId(value) {
     const y = value.getFullYear();
     const m = String(value.getMonth() + 1).padStart(2, '0');
     const d = String(value.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return y + "-" + m + "-" + d;
   }
   const str = String(value).trim();
-  if (str.includes('T')) return str.split('T')[0];
+  if (str.indexOf("T") >= 0) return str.split("T")[0];
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  var m = str.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m) return m[1] + "-" + m[2] + "-" + m[3];
   return str;
 }
 

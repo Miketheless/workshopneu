@@ -21,13 +21,24 @@ function showLoading(show) {
 
 function formatDate(str) {
   if (!str) return "–";
-  const s = String(str);
-  if (s.includes("T")) return s.split("T")[0];
-  if (s.includes("-")) {
+  let s = String(str).trim();
+  if (s.includes("T")) s = s.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const [y, m, d] = s.split("-");
     return d + "." + m + "." + y;
   }
+  const m = s.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m) return m[3] + "." + m[2] + "." + m[1];
   return str;
+}
+
+function formatSlotDisplay(slotId, dateStr) {
+  if (dateStr && /^\d{4}-\d{2}-\d{2}/.test(String(dateStr))) return formatDate(dateStr);
+  if (!slotId) return "–";
+  const sid = String(slotId);
+  const m = sid.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m) return m[3] + "." + m[2] + "." + m[1];
+  return slotId;
 }
 
 function formatTimestamp(ts) {
@@ -197,7 +208,7 @@ function renderBookings() {
       <tr class="${cancelled ? "row-cancelled" : ""}">
         <td><strong>${b.booking_id}</strong></td>
         <td>${formatTimestamp(b.timestamp)}</td>
-        <td>${b.slot_id || "–"}</td>
+        <td>${formatSlotDisplay(b.slot_id, b.slot_date)}</td>
         <td>${b.workshop_title || b.workshop_id || "–"}</td>
         <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
         <td>${b.participants_count || 0}</td>

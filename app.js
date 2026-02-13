@@ -59,6 +59,16 @@ function formatDateShort(str) {
   return `${String(p.day).padStart(2, "0")}.${String(p.month).padStart(2, "0")}.${p.year}`;
 }
 
+/** Datum aus slot_id oder date extrahieren (slot_id z.B. "langes-spiel_20260307_1") */
+function getDateFromSlot(slot) {
+  let str = (slot.date || slot.slot_id || "").toString().trim();
+  if (str.includes("T")) str = str.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const m = str.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return "";
+}
+
 function isFuture(str) {
   const p = parseDate(str);
   if (!p) return false;
@@ -135,7 +145,7 @@ function renderFilterDropdown() {
 }
 
 function renderSlotCard(slot, workshop) {
-  const dateId = (slot.date || slot.slot_id || "").toString().split("T")[0];
+  const dateId = getDateFromSlot(slot);
   const p = parseDate(dateId);
   if (!p) return "";
 
@@ -188,10 +198,10 @@ function renderAllWorkshops() {
   } else {
     toShow.forEach(item => {
       const w = item.workshop;
-      const futureSlots = (item.slots || []).filter(s => isFuture(s.date || s.slot_id));
-      futureSlots.sort((a, b) => {
-        const da = parseDate(a.date || a.slot_id);
-        const db = parseDate(b.date || b.slot_id);
+  const futureSlots = (item.slots || []).filter(s => isFuture(getDateFromSlot(s)));
+  futureSlots.sort((a, b) => {
+    const da = parseDate(getDateFromSlot(a));
+    const db = parseDate(getDateFromSlot(b));
         if (!da || !db) return 0;
         return new Date(da.year, da.month - 1, da.day) - new Date(db.year, db.month - 1, db.day);
       });
