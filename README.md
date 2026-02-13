@@ -56,9 +56,9 @@ Statisches Frontend (HTML/CSS/Vanilla JS) für GitHub Pages, Backend: Google App
 6. Öffne dein Google Sheet – du solltest jetzt mehrere Tabs sehen: Workshops, Slots, Bookings, Participants, Settings
 
 7. Wähle im Dropdown die Funktion **seedWorkshops** und klicke **Ausführen**
-   - Im Tab „Workshops“ sollten jetzt 5 Workshop-Kategorien erscheinen
-8. Wähle die Funktion **seedSlotsFromFlyer_March** und klicke **Ausführen**
-   - Im Tab „Slots“ sollten jetzt März-Termine erscheinen
+   - Im Tab „Workshops“ sollten jetzt 6 Workshop-Kategorien erscheinen (inkl. Driver)
+8. Wähle die Funktion **seedSlotsFromFlyer_March2026** und klicke **Ausführen**
+   - Alle bisherigen Slots werden gelöscht; die 5 Termine vom Flyer „Workshops März 2026“ werden angelegt
 
 ---
 

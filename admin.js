@@ -201,7 +201,7 @@ function renderBookings() {
   filtered.forEach(b => {
     const cancelled = b.status === "CANCELLED";
     const participantsStr = (b.participants || [])
-      .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + ")")
+      .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")")
       .join("; ");
     
     html += `
@@ -224,6 +224,24 @@ function renderBookings() {
   container.innerHTML = html;
 }
 
+function buildTimeOptionsHalfHour(startHour, endHour) {
+  const opts = [];
+  for (let h = startHour; h <= endHour; h++) {
+    opts.push({ value: String(h).padStart(2, "0") + ":00", label: String(h).padStart(2, "0") + ":00 Uhr" });
+    if (h < endHour) opts.push({ value: String(h).padStart(2, "0") + ":30", label: String(h).padStart(2, "0") + ":30 Uhr" });
+  }
+  return opts;
+}
+
+function formatTimeDisplay(val) {
+  if (!val) return "–";
+  const s = String(val).trim();
+  const m = s.match(/T(\d{1,2}):(\d{2})/);
+  if (m) return m[1].padStart(2, "0") + ":" + m[2];
+  if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+  return s;
+}
+
 function renderSlotsForm() {
   const sel = $("add-workshop");
   sel.innerHTML = '<option value="">– Workshop wählen –</option>';
@@ -233,6 +251,29 @@ function renderSlotsForm() {
     opt.textContent = w.title || w.workshop_id;
     sel.appendChild(opt);
   });
+
+  const startSel = $("add-start");
+  const endSel = $("add-end");
+  if (startSel) {
+    startSel.innerHTML = "";
+    buildTimeOptionsHalfHour(6, 21).forEach(o => {
+      const opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      startSel.appendChild(opt);
+    });
+    startSel.value = "10:00";
+  }
+  if (endSel) {
+    endSel.innerHTML = "";
+    buildTimeOptionsHalfHour(6, 22).forEach(o => {
+      const opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      endSel.appendChild(opt);
+    });
+    endSel.value = "12:00";
+  }
 }
 
 function renderSlotsFilter() {
@@ -294,7 +335,7 @@ function renderSlotsTable() {
       <tr class="${past ? "row-past" : ""}">
         <td>${s.workshop_title || s.workshop_id || "–"}</td>
         <td>${formatDate(s.date)}</td>
-        <td>${s.start || "–"}–${s.end || "–"}</td>
+        <td>${formatTimeDisplay(s.start)}–${formatTimeDisplay(s.end)} Uhr</td>
         <td>${s.booked || 0} / ${s.capacity || 4}</td>
         <td><span class="status-badge ${statusClass}">${s.status === "FULL" ? "Voll" : "Offen"}</span></td>
       </tr>

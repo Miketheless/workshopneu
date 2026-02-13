@@ -107,7 +107,8 @@ function formatTimeForSlot(value) {
   const str = String(value).trim();
   const isoMatch = str.match(/T(\d{1,2}):(\d{2})/);
   if (isoMatch) return isoMatch[1].padStart(2, "0") + ":" + isoMatch[2];
-  if (/^\d{1,2}:\d{2}$/.test(str)) return str.length === 4 ? "0" + str : str;
+  const hmMatch = str.match(/^(\d{1,2}):(\d{2})$/);
+  if (hmMatch) return String(parseInt(hmMatch[1], 10)).padStart(2, "0") + ":" + hmMatch[2];
   return str;
 }
 
@@ -280,9 +281,9 @@ function handleBook(payload) {
         slotData = {
           slot_id: row[0],
           workshop_id: row[1],
-          date: row[2],
-          start: row[3],
-          end: row[4],
+          date: extractSlotDateId(row[2]) || row[2],
+          start: formatTimeForSlot(row[3]) || "10:00",
+          end: formatTimeForSlot(row[4]) || "12:00",
           capacity: parseInt(row[5]) || MAX_PARTICIPANTS,
           booked: parseInt(row[6]) || 0,
           status: row[7]
@@ -323,7 +324,8 @@ function handleBook(payload) {
         idx + 1,
         p.first_name || "",
         p.last_name || "",
-        p.email || ""
+        p.email || "",
+        p.phone || ""
       ]);
     });
     
@@ -454,7 +456,8 @@ function handleAdminBookings(adminKey) {
       idx: participantsData[i][1],
       first_name: participantsData[i][2],
       last_name: participantsData[i][3],
-      email: participantsData[i][4] || ""
+      email: participantsData[i][4] || "",
+      phone: participantsData[i][5] || ""
     });
   }
   
@@ -511,7 +514,7 @@ function handleAdminExportCsv(adminKey) {
     participantsByBooking[bid].push(participantsData[i]);
   }
   
-  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;TN-Nr;Vorname;Nachname;E-Mail\n";
+  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;TN-Nr;Vorname;Nachname;E-Mail;Telefon\n";
   
   for (let i = 1; i < bookingsData.length; i++) {
     const b = bookingsData[i];
@@ -520,10 +523,10 @@ function handleAdminExportCsv(adminKey) {
     
     if (participants.length > 0) {
       participants.forEach((p, idx) => {
-        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], p[1], p[2], p[3], p[4] || ""].join(";") + "\n";
+        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], p[1], p[2], p[3], p[4] || "", p[5] || ""].join(";") + "\n";
       });
     } else {
-      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], "", "", "", ""].join(";") + "\n";
+      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], "", "", "", "", ""].join(";") + "\n";
     }
   }
   
@@ -625,7 +628,7 @@ function sendBookingConfirmationEmail(bookingId, payload, slotData, cancelToken)
   const fromName = getSetting("MAIL_FROM_NAME") || "gemma golfn";
   const cancelUrl = baseUrl + "/cancel.html?token=" + cancelToken;
   
-  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + ")").join("\n");
+  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")").join("\n");
   
   const subject = "Buchungsbestätigung – Workshop am " + formatDateForEmail(slotData.date);
   const body = `
@@ -666,7 +669,7 @@ function sendAdminNotificationEmail(bookingId, payload, slotData) {
   const baseUrl = getSetting("PUBLIC_BASE_URL") || "";
   const cancelToken = ""; // Wird aus Bookings gelesen wenn nötig
   
-  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " – " + (p.email || "")).join("\n");
+  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " – " + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "")).join("\n");
   
   const subject = "[Neue Buchung] " + bookingId + " – " + formatDateForEmail(slotData.date);
   const body = `
@@ -736,7 +739,7 @@ function initSheets() {
   let pa = ss.getSheetByName(SHEET_PARTICIPANTS);
   if (!pa) { pa = ss.insertSheet(SHEET_PARTICIPANTS); }
   if (pa.getLastRow() === 0) {
-    pa.appendRow(["booking_id", "idx", "first_name", "last_name", "email"]);
+    pa.appendRow(["booking_id", "idx", "first_name", "last_name", "email", "phone"]);
   }
   
   let se = ss.getSheetByName(SHEET_SETTINGS);
@@ -764,6 +767,7 @@ function seedWorkshops() {
   
   const workshops = [
     ["langes-spiel", "Langes Spiel (inkl. Toptracer)", "Langes Spiel & Schwungtechnik – mehr Power, mehr Präzision. Bei diesem Workshop konzentrieren wir uns auf das Verbessern deines Schwungs. Dein Eisenspiel sowie die Schläge mit Hybrids, Fairwayhölzern und dem Driver profitieren direkt von den erarbeiteten Verbesserungen! Mit Videoanalyse und individuellem Trainingsplan.", "2 Stunden", 50, 2, 4, true],
+    ["driver", "Driver", "Driver-Workshop – mehr Weite und Präzision vom Tee. In diesem Workshop optimieren wir deinen Abschlag mit dem Driver.", "2 Stunden", 50, 2, 4, true],
     ["pitchen-bunker", "Pitchen/Bunker", "Pitchen & Bunkerschläge rund ums Grün. Wie bringe ich den Ball schnell zum Liegen – und wie dosiere ich meinen Schlag richtig? In diesem Workshop zeigen dir unsere Pros, wie du rund ums Grün die volle Kontrolle bekommst.", "2 Stunden", 50, 2, 4, true],
     ["putten-chippen", "Putten/Chippen", "Putten & Chippen – das Feingefühl macht den Unterschied. In diesem Workshop lernst du von unseren Pros, wie du das kurze Spiel meisterst – mit mehr Gefühl, besserer Technik und konstanter Kontrolle auf dem Grün.", "2 Stunden", 50, 2, 4, true],
     ["spielen-am-platz", "Spielen am Platz", "9 Loch mit dem Pro – Golftraining direkt dort, wo's zählt! Gemeinsam mit unseren Pros spielst du 9 Loch und bekommst wertvolle Tipps zu Strategie, Schlägerwahl, Technik und mentalem Spiel.", "ca. 2 Stunden", 99, 1, 4, true],
@@ -775,49 +779,65 @@ function seedWorkshops() {
 }
 
 /**
- * März-Termine aus dem Platzreife-Flyer (Platzreifekurse 2026 inkl. Jahresmitgliedschaft Golfpark Metzenhof.pdf)
- * Flyer enthält u.a.: 07.03.2026, 14.03.2026, 21.03.2026, 28.03.2026
- * Erstellt Slots für jede Workshop-Kategorie an diesen Terminen.
+ * Driver-Workshop hinzufügen, falls noch nicht vorhanden (für Flyer-Termine)
  */
-function seedSlotsFromFlyer_March() {
+function addDriverWorkshopIfMissing() {
+  const sheet = getSheet(SHEET_WORKSHOPS);
+  if (!sheet || sheet.getLastRow() < 1) return;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === "driver") return;
+  }
+  sheet.appendRow(["driver", "Driver", "Driver-Workshop – mehr Weite und Präzision vom Tee.", "2 Stunden", 50, 2, 4, true]);
+  console.log("Driver-Workshop hinzugefügt.");
+}
+
+/**
+ * Workshops März 2026 – Flyer "Workshops März 2026.pdf"
+ * Löscht ALLE vorhandenen Slots und legt die 5 Termine vom Flyer neu an.
+ *
+ * Flyer-Termine:
+ * - 03.03.2026 15:30-17:30 WS Langes Spiel
+ * - 06.03.2026 13:00-15:00 WS Driver
+ * - 11.03.2026 15:00-17:00 WS Pitchen
+ * - 19.03.2026 16:00-18:00 WS Langes Spiel
+ * - 26.03.2026 15:30-17:30 WS Chippen/Putten
+ */
+function seedSlotsFromFlyer_March2026() {
+  addDriverWorkshopIfMissing();
   const sheet = getSheet(SHEET_SLOTS);
-  const workshopsSheet = getSheet(SHEET_WORKSHOPS);
-  
-  if (!workshopsSheet || workshopsSheet.getLastRow() < 2) {
-    console.log("Bitte zuerst seedWorkshops() ausführen.");
+  if (!sheet) {
+    console.log("Slots-Sheet nicht gefunden.");
     return;
   }
-  
-  const workshopData = workshopsSheet.getDataRange().getValues();
-  const workshopIds = [];
-  for (let i = 1; i < workshopData.length; i++) {
-    const row = workshopData[i];
-    const isActive = row[7];
-    if (isActive !== false && isActive !== "FALSE" && isActive !== "") {
-      workshopIds.push(row[0]);
-    }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow);
+    console.log("Alle " + (lastRow - 1) + " Slots gelöscht.");
   }
-  
-  const marchDates = ["2026-03-07", "2026-03-14", "2026-03-21", "2026-03-28"];
-  const timeSlots = [
-    { start: "09:00", end: "11:00" },
-    { start: "11:30", end: "13:30" },
-    { start: "14:00", end: "16:00" }
+
+  const flyerSlots = [
+    { workshop_id: "langes-spiel", date: "2026-03-03", start: "15:30", end: "17:30" },
+    { workshop_id: "driver", date: "2026-03-06", start: "13:00", end: "15:00" },
+    { workshop_id: "pitchen-bunker", date: "2026-03-11", start: "15:00", end: "17:00" },
+    { workshop_id: "langes-spiel", date: "2026-03-19", start: "16:00", end: "18:00" },
+    { workshop_id: "putten-chippen", date: "2026-03-26", start: "15:30", end: "17:30" }
   ];
-  
-  let added = 0;
-  for (let wi = 0; wi < workshopIds.length; wi++) {
-    const workshopId = workshopIds[wi];
-    for (let di = 0; di < marchDates.length; di++) {
-      const dateStr = marchDates[di];
-      for (let ti = 0; ti < timeSlots.length; ti++) {
-        const ts = timeSlots[ti];
-        const slotId = workshopId + "_" + dateStr.replace(/-/g, "") + "_" + (ti + 1);
-        sheet.appendRow([slotId, workshopId, dateStr, ts.start, ts.end, MAX_PARTICIPANTS, 0, "OPEN"]);
-        added++;
-      }
-    }
+
+  for (let i = 0; i < flyerSlots.length; i++) {
+    const s = flyerSlots[i];
+    const slotId = s.workshop_id + "_" + s.date.replace(/-/g, "") + "_1";
+    sheet.appendRow([slotId, s.workshop_id, s.date, s.start, s.end, MAX_PARTICIPANTS, 0, "OPEN"]);
   }
-  
-  console.log(added + " Slots für März 2026 angelegt (aus Flyer-Terminen).");
+
+  console.log(flyerSlots.length + " Slots vom Flyer März 2026 angelegt.");
+}
+
+/**
+ * Veraltet: Alte März-Termine – ersetzt durch seedSlotsFromFlyer_March2026()
+ */
+function seedSlotsFromFlyer_March() {
+  console.log("Bitte verwende seedSlotsFromFlyer_March2026() für die Flyer-Termine vom März 2026.");
+  seedSlotsFromFlyer_March2026();
 }

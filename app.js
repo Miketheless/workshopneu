@@ -351,6 +351,7 @@ function renderParticipants(count) {
       </div>
       <div class="form-row">
         <label>E-Mail * <input type="email" name="p${i}_email" required autocomplete="email"></label>
+        <label>Telefon * <input type="tel" name="p${i}_phone" required placeholder="+43 660 1234567" autocomplete="tel"></label>
       </div>
     `;
     container.appendChild(fs);
@@ -381,14 +382,15 @@ async function handleSubmit(e) {
     const first = (formData.get("p0_first") || "").trim();
     const last = (formData.get("p0_last") || "").trim();
     const email = (formData.get("p0_email") || "").trim();
+    const phone = (formData.get("p0_phone") || "").trim();
 
-    if (!slotId || !workshopId || !first || !last || !email) throw new Error("Bitte alle Felder (Vorname, Nachname, E-Mail) ausfüllen.");
+    if (!slotId || !workshopId || !first || !last || !email || !phone) throw new Error("Bitte alle Felder (Vorname, Nachname, E-Mail, Telefon) ausfüllen.");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) throw new Error("Bitte gültige E-Mail eingeben.");
 
     const contactEmail = email;
-    const participants = [{ first_name: first, last_name: last, email }];
+    const participants = [{ first_name: first, last_name: last, email, phone }];
 
     const agb = document.getElementById("agb_accepted")?.checked;
     const privacy = document.getElementById("privacy_accepted")?.checked;
