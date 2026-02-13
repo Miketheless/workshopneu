@@ -60,6 +60,16 @@ function formatDateShort(str) {
 }
 
 /** Datum aus slot_id oder date extrahieren (slot_id z.B. "langes-spiel_20260307_1") */
+/** Zeitwert (ISO-String oder "HH:MM") zu "HH:MM" formatieren */
+function formatTimeDisplay(val) {
+  if (!val) return "–";
+  const s = String(val).trim();
+  const m = s.match(/T(\d{1,2}):(\d{2})/);
+  if (m) return m[1].padStart(2, "0") + ":" + m[2];
+  if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+  return s;
+}
+
 function getDateFromSlot(slot) {
   let str = (slot.date || slot.slot_id || "").toString().trim();
   if (str.includes("T")) str = str.split("T")[0];
@@ -171,7 +181,7 @@ function renderSlotCard(slot, workshop) {
       <div class="termin-details">
         <div class="termin-info-row">
           <span class="info-icon">🕐</span>
-          <span class="info-text">${slot.start || "–"}–${slot.end || "–"} Uhr</span>
+          <span class="info-text">${formatTimeDisplay(slot.start)}–${formatTimeDisplay(slot.end)} Uhr</span>
         </div>
         <div class="termin-info-row">
           <span class="info-icon">👥</span>
@@ -325,7 +335,7 @@ function displaySelectedSlot() {
 
   document.getElementById("selected-date-text").textContent = formatDateLong(selectedSlot.date);
   document.getElementById("slot-info-date").textContent = formatDateLong(selectedSlot.date);
-  document.getElementById("slot-info-time").innerHTML = `<span class="time-label">Zeit:</span> <span class="time-value">${selectedSlot.start}–${selectedSlot.end} Uhr</span>`;
+  document.getElementById("slot-info-time").innerHTML = `<span class="time-label">Zeit:</span> <span class="time-value">${formatTimeDisplay(selectedSlot.start)}–${formatTimeDisplay(selectedSlot.end)} Uhr</span>`;
   document.getElementById("slot-info-free").textContent = free > 0 ? `✓ ${free} Plätze frei` : "Ausgebucht";
   document.getElementById("slot-info-workshop").textContent = selectedSlot.workshop ? selectedSlot.workshop.title : "";
 
