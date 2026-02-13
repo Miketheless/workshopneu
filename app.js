@@ -303,7 +303,6 @@ function initBookingPage() {
     document.getElementById("workshop_id").value = workshopId;
 
     displaySelectedSlot();
-    setupParticipantsSelect(free);
     renderParticipants(1);
   });
 }
@@ -333,26 +332,7 @@ function displaySelectedSlot() {
   document.getElementById("summary-date").textContent = formatDateLong(selectedSlot.date);
   document.getElementById("summary-workshop").textContent = selectedSlot.workshop ? selectedSlot.workshop.title : "";
 
-  updateOrderSummary(1);
-}
-
-function setupParticipantsSelect(maxFree) {
-  const sel = document.getElementById("participants_count");
-  if (!sel) return;
-
-  const max = Math.min(CONFIG.MAX_PARTICIPANTS, maxFree);
-  Array.from(sel.options || []).forEach(opt => {
-    const v = parseInt(opt.value);
-    opt.disabled = v > max;
-  });
-  if (parseInt(sel.value) > max) sel.value = String(max);
-
-  const handler = () => {
-    const n = parseInt(sel.value) || 1;
-    renderParticipants(n);
-    updateOrderSummary(n);
-  };
-  sel.onchange = handler;
+  updateOrderSummary();
 }
 
 function renderParticipants(count) {
@@ -364,7 +344,7 @@ function renderParticipants(count) {
     const fs = document.createElement("fieldset");
     fs.className = "participant-fieldset";
     fs.innerHTML = `
-      <legend>Teilnehmer ${i + 1}</legend>
+      <legend>Deine Angaben</legend>
       <div class="form-row">
         <label>Vorname * <input type="text" name="p${i}_first" required autocomplete="given-name"></label>
         <label>Nachname * <input type="text" name="p${i}_last" required autocomplete="family-name"></label>
@@ -377,14 +357,10 @@ function renderParticipants(count) {
   }
 }
 
-function updateOrderSummary(count) {
-  const sel = document.getElementById("participants_count");
-  const n = sel ? parseInt(sel.value) || count : count;
-
-  document.getElementById("summary-count").textContent = n === 1 ? "1 Person" : `${n} Personen`;
-
+function updateOrderSummary() {
   const price = selectedSlot?.workshop ? parseInt(selectedSlot.workshop.price_eur) || 50 : 50;
-  document.getElementById("summary-total").textContent = `${price * n} €`;
+  const el = document.getElementById("summary-total");
+  if (el) el.textContent = `${price} €`;
 }
 
 async function handleSubmit(e) {
@@ -402,23 +378,17 @@ async function handleSubmit(e) {
   try {
     const slotId = formData.get("slot_id");
     const workshopId = formData.get("workshop_id");
-    const contactEmail = formData.get("contact_email");
-    const count = parseInt(formData.get("participants_count")) || 1;
+    const first = (formData.get("p0_first") || "").trim();
+    const last = (formData.get("p0_last") || "").trim();
+    const email = (formData.get("p0_email") || "").trim();
 
-    if (!slotId || !workshopId || !contactEmail) throw new Error("Unvollständige Angaben.");
+    if (!slotId || !workshopId || !first || !last || !email) throw new Error("Bitte alle Felder (Vorname, Nachname, E-Mail) ausfüllen.");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(contactEmail)) throw new Error("Bitte gültige Kontakt-E-Mail eingeben.");
+    if (!emailRegex.test(email)) throw new Error("Bitte gültige E-Mail eingeben.");
 
-    const participants = [];
-    for (let i = 0; i < count; i++) {
-      const first = (formData.get(`p${i}_first`) || "").trim();
-      const last = (formData.get(`p${i}_last`) || "").trim();
-      const email = (formData.get(`p${i}_email`) || "").trim();
-      if (!first || !last || !email) throw new Error(`Teilnehmer ${i + 1}: Alle Felder Pflicht.`);
-      if (!emailRegex.test(email)) throw new Error(`Teilnehmer ${i + 1}: Ungültige E-Mail.`);
-      participants.push({ first_name: first, last_name: last, email });
-    }
+    const contactEmail = email;
+    const participants = [{ first_name: first, last_name: last, email }];
 
     const agb = document.getElementById("agb_accepted")?.checked;
     const privacy = document.getElementById("privacy_accepted")?.checked;
@@ -431,7 +401,7 @@ async function handleSubmit(e) {
       slot_id: slotId,
       workshop_id: workshopId,
       contact_email: contactEmail,
-      participants_count: count,
+      participants_count: 1,
       participants,
       agb_accepted: true,
       privacy_accepted: true,

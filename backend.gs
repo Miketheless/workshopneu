@@ -96,6 +96,21 @@ function extractSlotDateId(value) {
   return str;
 }
 
+/** Zeitwert (Date, ISO-String oder "HH:MM") in "HH:MM" umwandeln */
+function formatTimeForSlot(value) {
+  if (!value) return "";
+  if (value instanceof Date) {
+    const h = value.getHours();
+    const m = value.getMinutes();
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  }
+  const str = String(value).trim();
+  const isoMatch = str.match(/T(\d{1,2}):(\d{2})/);
+  if (isoMatch) return isoMatch[1].padStart(2, "0") + ":" + isoMatch[2];
+  if (/^\d{1,2}:\d{2}$/.test(str)) return str.length === 4 ? "0" + str : str;
+  return str;
+}
+
 function formatDateForEmail(dateValue) {
   const weekdays = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
   let date;
@@ -215,8 +230,8 @@ function handleGetSlots(workshopId) {
       slot_id: row[0],
       workshop_id: row[1],
       date: dateId,
-      start: row[3] || "10:00",
-      end: row[4] || "12:00",
+      start: formatTimeForSlot(row[3]) || "10:00",
+      end: formatTimeForSlot(row[4]) || "12:00",
       capacity,
       booked,
       free: Math.max(0, capacity - booked),
@@ -550,8 +565,8 @@ function handleAdminSlots(adminKey) {
         workshop_id: row[1],
         workshop_title: workshopTitles[row[1]] || row[1],
         date: dateId,
-        start: row[3] || "10:00",
-        end: row[4] || "12:00",
+        start: formatTimeForSlot(row[3]) || "10:00",
+        end: formatTimeForSlot(row[4]) || "12:00",
         capacity: parseInt(row[5]) || MAX_PARTICIPANTS,
         booked: parseInt(row[6]) || 0,
         status: row[7] || "OPEN"

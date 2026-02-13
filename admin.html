@@ -101,12 +101,16 @@
           <input type="date" id="add-date" required>
           <div class="form-row">
             <div>
-              <label for="add-start">Start</label>
-              <input type="text" id="add-start" value="10:00" placeholder="10:00">
+              <label for="add-start">Start *</label>
+              <select id="add-start">
+                <!-- 06:00–20:00, 1h-Schritte -->
+              </select>
             </div>
             <div>
-              <label for="add-end">Ende</label>
-              <input type="text" id="add-end" value="12:00" placeholder="12:00">
+              <label for="add-end">Ende *</label>
+              <select id="add-end">
+                <!-- 2h nach Start (08:00–22:00) -->
+              </select>
             </div>
           </div>
           <button type="submit">✓ Termin hinzufügen</button>

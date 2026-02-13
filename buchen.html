@@ -31,13 +31,14 @@
   
   <section class="card booking-form-section">
     <div class="card-header">
-      <h2>Teilnehmerdaten</h2>
-      <p class="form-subtitle">Bitte fülle alle Pflichtfelder (*) aus. Max. 4 Teilnehmer pro Buchung.</p>
+      <h2>Deine Daten</h2>
+      <p class="form-subtitle">Bitte fülle alle Pflichtfelder (*) aus.</p>
     </div>
     
     <form id="booking-form">
       <input type="hidden" id="slot_id" name="slot_id" value="">
       <input type="hidden" id="workshop_id" name="workshop_id" value="">
+      <input type="hidden" id="participants_count" name="participants_count" value="1">
       
       <div class="selected-slot-info" id="slot-info-card">
         <div class="slot-info-icon">📅</div>
@@ -52,31 +53,12 @@
         <a href="index.html" class="slot-change-link">← Anderen Termin wählen</a>
       </div>
       
-      <!-- Teilnehmeranzahl 1–4 -->
-      <div class="participants-count-section">
-        <label>Anzahl Teilnehmer (1–4):</label>
-        <select id="participants_count" name="participants_count" class="participants-count-select">
-          <option value="1">1 Teilnehmer</option>
-          <option value="2">2 Teilnehmer</option>
-          <option value="3">3 Teilnehmer</option>
-          <option value="4">4 Teilnehmer</option>
-        </select>
-      </div>
-      
-      <!-- Kontakt-E-Mail (kann identisch mit erstem Teilnehmer sein) -->
-      <div class="contact-email-section">
-        <label>Kontakt-E-Mail *</label>
-        <input type="email" name="contact_email" id="contact_email" required placeholder="max.mustermann@email.at" autocomplete="email">
-        <small class="field-hint">Wird für Buchungsbestätigung und Storno-Link verwendet. Kann identisch mit der E-Mail des ersten Teilnehmers sein.</small>
-      </div>
-      
-      <!-- Dynamische Teilnehmerfelder -->
+      <!-- Kontakt-E-Mail -->
       <div class="participants-data-section">
         <div class="section-header">
-          <span class="section-icon">👥</span>
-          <h3>Teilnehmer</h3>
+          <span class="section-icon">👤</span>
+          <h3>Deine Angaben</h3>
         </div>
-        <p class="section-description">Vorname, Nachname und E-Mail pro Teilnehmer.</p>
         <div id="participants"></div>
       </div>
       
@@ -89,10 +71,6 @@
         <div class="order-summary-row">
           <span class="order-label">Termin:</span>
           <span class="order-value" id="summary-date">–</span>
-        </div>
-        <div class="order-summary-row">
-          <span class="order-label">Teilnehmer:</span>
-          <span class="order-value" id="summary-count">–</span>
         </div>
         <div class="order-price">
           <div class="price-total">
@@ -107,7 +85,7 @@
         <h4>Rechtliche Zustimmungen</h4>
         <label class="checkbox-item">
           <input type="checkbox" class="checkbox-square" name="agb_accepted" id="agb_accepted" required>
-          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>. *</span>
+          <span>Ich akzeptiere die <a href="https://www.gemma-golfn.at/agb/" target="_blank" rel="noopener">AGB</a>. *</span>
         </label>
         <label class="checkbox-item">
           <input type="checkbox" class="checkbox-square" name="privacy_accepted" id="privacy_accepted" required>
