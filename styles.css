@@ -2670,16 +2670,16 @@ a:focus-visible {
 .workshop-intro.highlight { margin-top: 1rem; }
 
 /* Workshop Select + Details */
-.workshop-select-wrapper {
+.workshop-filter-wrapper {
   margin-bottom: 1.5rem;
 }
-.workshop-select-wrapper label {
+.workshop-filter-wrapper label {
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
-.workshop-select {
+.workshop-filter {
   width: 100%;
   max-width: 400px;
   padding: 0.75rem 1rem;
@@ -2688,16 +2688,17 @@ a:focus-visible {
   font-size: 1rem;
   background: white;
 }
-.workshop-details {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+.workshop-block {
+  margin-bottom: 2.5rem;
+  padding: 1.25rem;
   background: var(--color-bg);
   border-radius: 8px;
   border-left: 4px solid var(--color-primary);
 }
-.workshop-details.hidden { display: none; }
-.workshop-detail-desc { font-size: 0.9rem; color: var(--color-text-light); margin: 0.5rem 0; }
-.workshop-meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--color-primary); font-weight: 600; }
+.workshop-block h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; }
+.workshop-block .workshop-desc { font-size: 0.9rem; color: var(--color-text-light); margin: 0.5rem 0 1rem 0; }
+.workshop-block .workshop-meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--color-primary); font-weight: 600; margin-bottom: 1rem; }
+.workshop-block .workshop-slots-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text); }
 
 /* Buchungsformular: Teilnehmeranzahl, Kontakt-E-Mail */
 .participants-count-section,

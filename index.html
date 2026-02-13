@@ -51,34 +51,22 @@
   <section class="card termine-section">
     <div class="card-header">
       <h2>Workshop buchen</h2>
-      <p class="termine-subtitle">Wähle deinen Workshop und einen verfügbaren Termin</p>
+      <p class="termine-subtitle">Wähle einen verfügbaren Termin</p>
     </div>
     
-    <!-- Workshop-Kategorie Dropdown -->
-    <div class="workshop-select-wrapper">
-      <label for="workshop-select">Workshop-Kategorie:</label>
-      <select id="workshop-select" class="workshop-select">
-        <option value="">– Workshop wählen –</option>
+    <!-- Filter: Workshop-Art auswählen (optional) -->
+    <div class="workshop-filter-wrapper">
+      <label for="workshop-filter">Workshop anzeigen:</label>
+      <select id="workshop-filter" class="workshop-filter">
+        <option value="">Alle Workshops</option>
       </select>
     </div>
     
-    <!-- Workshop-Details (Preis, Dauer, Beschreibung) -->
-    <div id="workshop-details" class="workshop-details hidden">
-      <div class="workshop-details-inner">
-        <h3 id="workshop-detail-title"></h3>
-        <p id="workshop-detail-desc" class="workshop-detail-desc"></p>
-        <div class="workshop-meta">
-          <span id="workshop-detail-price" class="workshop-meta-item"></span>
-          <span id="workshop-detail-duration" class="workshop-meta-item"></span>
-          <span id="workshop-detail-participants" class="workshop-meta-item">2–4 Teilnehmer</span>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Terminliste -->
-    <div id="slots-container" class="termine-grid">
-      <div class="termine-loading termine-empty" id="slots-placeholder">
-        <span>Wähle zuerst eine Workshop-Kategorie.</span>
+    <!-- Alle Workshops mit Terminen (nacheinander) -->
+    <div id="workshops-list">
+      <div class="termine-loading" id="loading-placeholder">
+        <div class="loading-spinner"></div>
+        <span>Termine werden geladen...</span>
       </div>
     </div>
     
