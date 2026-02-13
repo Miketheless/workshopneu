@@ -197,10 +197,19 @@ function handleGetWorkshops() {
   return jsonResponse({ ok: true, workshops });
 }
 
+const CACHE_TTL_SECONDS = 90;
+
 /**
  * Workshops + Slots in einem Aufruf (schneller als workshops + N×slots)
+ * Ergebnis wird 90 Sekunden gecacht – Wiederholte Aufrufe sind fast sofort.
  */
 function handleGetWorkshopsWithSlots() {
+  const cache = CacheService.getDocumentCache();
+  const cached = cache ? cache.get("workshops_with_slots") : null;
+  if (cached) {
+    return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const wsSheet = getSheet(SHEET_WORKSHOPS);
   const workshops = [];
   if (wsSheet && wsSheet.getLastRow() > 1) {
@@ -252,7 +261,10 @@ function handleGetWorkshopsWithSlots() {
     workshop: w,
     slots: slotsByWorkshop[w.workshop_id] || []
   }));
-  return jsonResponse({ ok: true, workshops, workshops_with_slots });
+  const result = { ok: true, workshops, workshops_with_slots };
+  const jsonStr = JSON.stringify(result);
+  if (cache) cache.put("workshops_with_slots", jsonStr, CACHE_TTL_SECONDS);
+  return ContentService.createTextOutput(jsonStr).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
