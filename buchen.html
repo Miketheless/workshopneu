@@ -1,29 +1,25 @@
 <!DOCTYPE html>
-<!-- Platzerlaubnis Buchungsformular – Golfclub Metzenhof – v4.5 (20.01.2026) – n8n Webhook Integration -->
+<!-- Workshop Buchungsformular – Gemma Golfn – v1.0 -->
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Platzerlaubniskurs Paket 2026 – Online buchen beim Golfclub Metzenhof.">
-  <title>Platzerlaubniskurs buchen – Golfclub Metzenhof</title>
-  <link rel="canonical" href="https://platzreife.metzenhof.at/buchen.html">
+  <meta name="description" content="Workshop buchen – Gemma Golfn.">
+  <title>Workshop buchen – Gemma Golfn</title>
+  <link rel="canonical" href="https://gemma-golfn.at/workshops/">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     HEADER (Kompakter für Buchungsseite)
-     ═══════════════════════════════════════════════════════════ -->
 <header class="hero hero-green hero-compact">
   <div class="hero-inner">
     <div class="hero-logos">
-      <a href="index.html" class="back-link">← Zurück zur Terminübersicht</a>
+      <a href="index.html" class="back-link">← Zurück zur Workshop-Auswahl</a>
       <img src="Gemma Golfn Logo Quer 1C_WEISS.svg" alt="Gemma Golfn" class="hero-logo hero-logo-gemma-small">
     </div>
     
-    <h1 class="hero-title-booking">Platzerlaubniskurs buchen</h1>
+    <h1 class="hero-title-booking">Workshop buchen</h1>
     
-    <!-- Gewählter Termin wird hier angezeigt -->
     <div id="selected-date-display" class="selected-date-badge">
       <span class="selected-date-label">Dein Termin:</span>
       <span class="selected-date-value" id="selected-date-text">–</span>
@@ -31,158 +27,105 @@
   </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN CONTENT – BUCHUNGSFORMULAR
-     ═══════════════════════════════════════════════════════════ -->
 <main class="container">
   
-  <!-- BUCHUNGSFORMULAR -->
   <section class="card booking-form-section">
     <div class="card-header">
-      <h2>Deine Daten</h2>
-      <p class="form-subtitle">Bitte fülle alle Pflichtfelder (*) aus.</p>
+      <h2>Teilnehmerdaten</h2>
+      <p class="form-subtitle">Bitte fülle alle Pflichtfelder (*) aus. Max. 4 Teilnehmer pro Buchung.</p>
     </div>
     
     <form id="booking-form">
-      <!-- Verstecktes Feld für Termin-ID -->
       <input type="hidden" id="slot_id" name="slot_id" value="">
+      <input type="hidden" id="workshop_id" name="workshop_id" value="">
       
-      <!-- Termin-Anzeige (nicht editierbar) -->
       <div class="selected-slot-info" id="slot-info-card">
         <div class="slot-info-icon">📅</div>
-        <div class="slot-info-header">Dein gewählter Kurstermin</div>
+        <div class="slot-info-header">Gewählter Workshop-Termin</div>
         <div class="slot-info-date" id="slot-info-date">–</div>
         <div class="slot-info-time" id="slot-info-time">
-          <span class="time-label">Kurszeit:</span>
-          <span class="time-value">09:00 Uhr bis 15:00 Uhr</span>
+          <span class="time-label">Zeit:</span>
+          <span class="time-value" id="slot-time-value">–</span>
         </div>
-        <div class="slot-info-free" id="slot-info-free">Max. 8 Teilnehmer</div>
+        <div class="slot-info-free" id="slot-info-free">–</div>
+        <div class="slot-info-workshop" id="slot-info-workshop">–</div>
         <a href="index.html" class="slot-change-link">← Anderen Termin wählen</a>
       </div>
       
-      <!-- Verstecktes Feld: Immer 1 Teilnehmer -->
-      <input type="hidden" id="participants_count" name="participants_count" value="1">
+      <!-- Teilnehmeranzahl 1–4 -->
+      <div class="participants-count-section">
+        <label>Anzahl Teilnehmer (1–4):</label>
+        <select id="participants_count" name="participants_count" class="participants-count-select">
+          <option value="1">1 Teilnehmer</option>
+          <option value="2">2 Teilnehmer</option>
+          <option value="3">3 Teilnehmer</option>
+          <option value="4">4 Teilnehmer</option>
+        </select>
+      </div>
       
-      <!-- Teilnehmerdaten -->
+      <!-- Kontakt-E-Mail (kann identisch mit erstem Teilnehmer sein) -->
+      <div class="contact-email-section">
+        <label>Kontakt-E-Mail *</label>
+        <input type="email" name="contact_email" id="contact_email" required placeholder="max.mustermann@email.at" autocomplete="email">
+        <small class="field-hint">Wird für Buchungsbestätigung und Storno-Link verwendet. Kann identisch mit der E-Mail des ersten Teilnehmers sein.</small>
+      </div>
+      
+      <!-- Dynamische Teilnehmerfelder -->
       <div class="participants-data-section">
         <div class="section-header">
-          <span class="section-icon">📝</span>
-          <h3>Deine Daten</h3>
+          <span class="section-icon">👥</span>
+          <h3>Teilnehmer</h3>
         </div>
-        <p class="section-description">Bitte gib deine Kontaktdaten ein.</p>
+        <p class="section-description">Vorname, Nachname und E-Mail pro Teilnehmer.</p>
         <div id="participants"></div>
       </div>
       
-      <!-- GUTSCHEINCODE -->
-      <div class="voucher-section">
-        <label class="voucher-label">
-          <span class="voucher-icon">🎟️</span>
-          Gutscheincode (optional)
-          <input type="text" name="voucher_code" id="voucher_code" placeholder="z.B. GOLF2026" autocomplete="off">
-        </label>
-      </div>
-      
-      <!-- BESTELLÜBERSICHT -->
       <div class="order-summary">
         <h3>📋 Bestellübersicht</h3>
-        
         <div class="order-summary-row">
-          <span class="order-label">Gewählter Termin:</span>
+          <span class="order-label">Workshop:</span>
+          <span class="order-value" id="summary-workshop">–</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-label">Termin:</span>
           <span class="order-value" id="summary-date">–</span>
         </div>
         <div class="order-summary-row">
-          <span class="order-label">Kurszeit:</span>
-          <span class="order-value">09:00–15:00 Uhr</span>
+          <span class="order-label">Teilnehmer:</span>
+          <span class="order-value" id="summary-count">–</span>
         </div>
-        
-        <div class="order-package">
-          <strong>Im Paket enthalten:</strong>
-          <ul>
-            <li>✓ Platzerlaubniskurs (Theorie + Praxis)</li>
-            <li>✓ Trainer & Übungsbälle</li>
-            <li>✓ Platzerlaubnisprüfung</li>
-            <li>✓ Einzelmitgliedschaft statt 1891 € um nur 45 €</li>
-            <li>✓ Dieses Angebot gilt nur für Personen, die noch keine Platzerlaubnis absolviert haben (ersichtlich über den ÖGV-Server).</li>
-            <li>✓ Dieser Kurs berechtigt dich nur zum Spielen am Golfpark Metzenhof.</li>
-          </ul>
-        </div>
-        
         <div class="order-price">
           <div class="price-total">
             <span>Gesamtpreis:</span>
-            <strong id="summary-total">144 €</strong>
+            <strong id="summary-total">–</strong>
           </div>
-          <div class="price-breakdown">
-            <span>99 € Kurs (GmbH) + 45 € Mitgliedschaft (Verein)</span>
-          </div>
-        </div>
-        
-        <div class="order-partners">
-          <small>Kursvertrag mit der Golfplatz Kronstorf-Steyr Betriebs-GmbH; Mitgliedschaftsantrag an den Verein Metzenhof.</small>
         </div>
       </div>
       
-      <!-- RECHTLICHE CHECKBOXEN -->
+      <!-- AGB/Datenschutz Checkbox -->
       <div class="legal-checkboxes">
         <h4>Rechtliche Zustimmungen</h4>
-        
-        <!-- 1. AGB Kurs -->
         <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="agb_kurs" id="agb_kurs" required>
-          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB für den Platzerlaubniskurs</a> (GmbH). *</span>
+          <input type="checkbox" class="checkbox-square" name="agb_accepted" id="agb_accepted" required>
+          <span>Ich akzeptiere die <a href="agb.html" target="_blank">AGB</a>. *</span>
         </label>
-        
-        <!-- 2. Datenschutz -->
         <label class="checkbox-item">
           <input type="checkbox" class="checkbox-square" name="privacy_accepted" id="privacy_accepted" required>
           <span>Ich habe die <a href="privacy.html" target="_blank">Datenschutzerklärung</a> zur Kenntnis genommen. *</span>
         </label>
-        
-        <!-- 3. Mitgliedschaft + Statuten -->
-        <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="membership_statutes" id="membership_statutes" required>
-          <span>Ich beantrage die Aufnahme als Mitglied im Verein Metzenhof und akzeptiere die <a href="2009_statuten_metzenhof-1.pdf" target="_blank">Statuten</a> sowie <a href="AGB Verein Golfpark Metzenhof.pdf" target="_blank">Mitgliedschaftsbedingungen</a>. *</span>
-        </label>
-        
-        <!-- 4. Vertragspartner-Trennung -->
-        <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="partner_awareness" id="partner_awareness" required>
-          <span>Mir ist bekannt, dass der Kurs über die Golfplatz Kronstorf-Steyr Betriebs-GmbH und die Mitgliedschaft über den Verein Metzenhof abgewickelt wird. *</span>
-        </label>
-        
-        <!-- 5. Kündigungshinweis -->
-        <label class="checkbox-item">
-          <input type="checkbox" class="checkbox-square" name="cancellation_notice" id="cancellation_notice" required>
-          <span>Ich habe die Kündigungsfrist und automatische Verlängerung gemäß Statuten zur Kenntnis genommen (Kündigung bis 30.11.). *</span>
-        </label>
-        
-        <!-- 6. Fixtermin / FAGG -->
         <label class="checkbox-item">
           <input type="checkbox" class="checkbox-square" name="fagg_consent" id="fagg_consent" required>
-          <span>Ich stimme ausdrücklich zu, dass die Leistung zu einem fixen Termin erbracht wird und nehme zur Kenntnis, dass dadurch kein Rücktrittsrecht gemäß § 18 FAGG besteht. *</span>
+          <span>Ich stimme zu, dass die Leistung zu einem fixen Termin erbracht wird (kein Rücktrittsrecht gemäß § 18 FAGG). *</span>
         </label>
-        
-        <!-- Optional: Newsletter -->
-        <label class="checkbox-item checkbox-optional">
-          <input type="checkbox" class="checkbox-square" name="newsletter" id="newsletter">
-          <span>Ich möchte den Newsletter per E-Mail und via WhatsApp von Gemma Golfn GmbH, Golfplatz Kronstorf-Steyr BetriebsGmbH und Golfpark Metzenhof erhalten (jederzeit widerrufbar).</span>
-        </label>
-        
         <p class="checkbox-hint">* Pflichtfeld</p>
       </div>
       
-      <!-- Fehlermeldung für Checkboxen -->
       <div id="checkbox-error" class="checkbox-error" style="display:none;"></div>
-      
-      <!-- Submit -->
-      <button type="submit" class="btn-submit">Jetzt kostenpflichtig buchen</button>
-      
-      <!-- Nachrichten -->
+      <button type="submit" class="btn-submit">Jetzt buchen</button>
       <div id="message" class="message" style="display:none;"></div>
     </form>
   </section>
   
-  <!-- ERFOLGSANZEIGE (initial versteckt) -->
   <section id="success-section" class="card success-card" style="display:none;">
     <div class="success-icon">✓</div>
     <h2>Buchung erfolgreich!</h2>
@@ -202,38 +145,21 @@
       </div>
     </div>
     
-    <!-- Webhook/E-Mail Status -->
-    <p id="webhook-status" class="webhook-status" style="display:none;"></p>
-    
     <div class="success-info">
-      <p id="email-status-text">Ihre Buchung wurde erfolgreich registriert.</p>
+      <p id="email-status-text">Sie erhalten eine Bestätigung per E-Mail inkl. Storno-Link.</p>
     </div>
     
-    <!-- Nächste Schritte -->
-    <div id="next-steps" class="next-steps" style="display:none;">
+    <div id="next-steps" class="next-steps">
       <h3>Nächste Schritte</h3>
       <ul>
         <li>✓ Dein Termin ist fix reserviert</li>
-        <li>✓ Du erhältst eine Bestätigung per E-Mail</li>
-        <li>✓ Bitte erscheine 15 Minuten vor dem Kurstermin im Golf-Sekretariat zur Anmeldung</li>
-        <li>✓ Bitte begleiche die Rechnung bis 2 Tage vor dem Kurstermin</li>
-        <li>✓ Ziehe gemütliche Sport-/Laufschuhe an</li>
-        <li>✓ Es wird eine kurze Mittagspause geben, bei der es die Möglichkeit gibt im Restaurant zu essen/trinken</li>
-        <li>✓ Schläger und Bälle werden zur Verfügung gestellt</li>
+        <li>✓ Bitte erscheine pünktlich zum Workshop</li>
+        <li>✓ Zahlung erfolgt vor Ort</li>
       </ul>
-      <p class="next-steps-docs">
-        <small>
-          Ihre Unterlagen: 
-          <a href="agb.html" target="_blank">AGB Kurs</a> · 
-          <a href="privacy.html" target="_blank">Datenschutz</a> · 
-          <a href="2009_statuten_metzenhof-1.pdf" target="_blank">Statuten</a>
-        </small>
-      </p>
     </div>
     
     <div class="success-contact">
-      <p>Bei Fragen erreichen Sie uns unter:</p>
-      <p><strong>golf@metzenhof.at</strong> · <strong>+43 7225 7389</strong></p>
+      <p>Bei Fragen: <strong>office@gemma-golfn.at</strong> · <strong>+43 7225 7389 10</strong></p>
     </div>
     
     <div class="success-buttons">
@@ -242,62 +168,33 @@
     </div>
   </section>
   
-  <!-- FEHLER: Kein Termin gewählt -->
   <section id="no-slot-section" class="card error-card" style="display:none;">
     <div class="error-icon">!</div>
     <h2>Kein Termin gewählt</h2>
     <p>Bitte wähle zuerst einen Termin aus der Übersicht.</p>
-    <a href="index.html" class="btn-primary">Zur Terminübersicht</a>
+    <a href="index.html" class="btn-primary">Zur Workshop-Auswahl</a>
   </section>
   
 </main>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FOOTER
-     ═══════════════════════════════════════════════════════════ -->
 <footer class="footer">
   <div class="footer-logo">
     <a href="https://www.metzenhof.at" target="_blank" rel="noopener">
       <img src="metzenhof_logo_ohne_subline_farbe.svg" alt="Golfclub Metzenhof" class="logo-white">
     </a>
   </div>
-  
   <div class="footer-inner">
     <div class="footer-section">
       <h5>Kontakt</h5>
-      <p>Golfplatz Kronstorf-Steyr BetriebsgesmbH</p>
-      <p>Dörfling 2, 4484 Kronstorf</p>
-      <p style="margin-top: 1rem;">
-        <a href="mailto:golf@metzenhof.at">golf@metzenhof.at</a>
-      </p>
-      <p><a href="tel:+4372257389">+43 7225 7389</a></p>
-    </div>
-    
-    <div class="footer-section">
-      <h5>Informationen</h5>
-      <a href="https://www.metzenhof.at/unser-golfplatz/" target="_blank">Unser Golfplatz</a>
-      <a href="agb.html">AGB Kurs (GmbH)</a>
-      <a href="2009_statuten_metzenhof-1.pdf" target="_blank">Statuten Verein</a>
-      <a href="AGB Verein Golfpark Metzenhof.pdf" target="_blank">Mitgliedschaftsbedingungen</a>
-      <a href="privacy.html">Datenschutz</a>
-    </div>
-    
-    <div class="footer-section">
-      <h5>Folgen Sie uns</h5>
-      <div class="footer-social">
-        <a href="https://www.facebook.com/Metzenhof" target="_blank" rel="noopener" aria-label="Facebook">f</a>
-        <a href="https://www.instagram.com/metzenhof_golfplatz/" target="_blank" rel="noopener" aria-label="Instagram">◯</a>
-      </div>
+      <p>Gemma Golfn GmbH · Dörfling 2, 4484 Kronstorf</p>
+      <p><a href="mailto:office@gemma-golfn.at">office@gemma-golfn.at</a></p>
     </div>
   </div>
-  
   <div class="footer-bottom">
     <p>© 2026 Golfclub Metzenhof</p>
-    <a href="https://www.metzenhof.at/impressum/" target="_blank">Impressum</a>
   </div>
 </footer>
 
 <script src="app.js"></script>
 </body>
 </html>
-

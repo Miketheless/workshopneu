@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<!-- Platzerlaubnis Terminübersicht – Golfclub Metzenhof – v4.5 (20.01.2026) -->
+<!-- Workshop-Buchung – Gemma Golfn / Golfclub Metzenhof – v1.0 -->
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Platzerlaubniskurs Paket 2026 – Tageskurs inkl. Platzerlaubnisprüfung und Einzelmitgliedschaft beim Golfclub Metzenhof.">
-  <title>Platzerlaubniskurs Paket 2026 – Golfclub Metzenhof</title>
-  <link rel="canonical" href="https://platzreife.metzenhof.at/">
+  <meta name="description" content="Workshops buchen – Langes Spiel, Pitchen/Bunker, Putten/Chippen, Spielen am Platz, Regelkunde.">
+  <title>Workshops – Gemma Golfn</title>
+  <link rel="canonical" href="https://gemma-golfn.at/workshops/">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════
-     HEADER (Grün mit Eye-Catcher)
+     HEADER
      ═══════════════════════════════════════════════════════════ -->
 <header class="hero hero-green">
   <div class="hero-inner">
@@ -20,65 +20,68 @@
       <img src="Gemma Golfn Logo Quer 1C_WEISS.svg" alt="Gemma Golfn" class="hero-logo hero-logo-gemma">
     </div>
     
-    <!-- Eye-Catcher: Hauptüberschrift -->
-    <h1 class="hero-headline">Platzerlaubniskurs inkl. Einzelmitgliedschaft 2026</h1>
-    <p class="hero-subheadline">Tageskurs inkl. offizieller Platzerlaubnis + vergünstigte Einzelmitgliedschaft</p>
+    <h1 class="hero-headline">Workshops</h1>
+    <p class="hero-subheadline">Gemeinsam mit unseren Pros gezielt besser werden!</p>
   </div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════════
-     PAKET-INFO (Above Terminliste)
+     WORKSHOP-INFO
      ═══════════════════════════════════════════════════════════ -->
 <section class="paket-info">
   <div class="paket-content">
-    <!-- Preisblock (oben, zentriert, plakativ) -->
-    <div class="paket-preis-hero">
-      <div class="preis-badge-animated">
-        <span class="preis-hauptpreis">144 €</span>
-        <span class="preis-label">Gesamtpreis</span>
-      </div>
-      <div class="preis-aufschluesselung">
-        <span>99 € Kurs</span>
-        <span class="preis-trenner">+</span>
-        <span>45 € Mitgliedschaft</span>
-      </div>
-    </div>
-    
-    <!-- Leistungsbox -->
-    <div class="paket-leistungen">
-      <h2 class="paket-title">Im Paket enthalten:</h2>
-      <ul class="leistungen-liste">
-        <li><span class="check-icon">✓</span> Platzerlaubniskurs (09:00–15:00 Uhr)</li>
-        <li><span class="check-icon">✓</span> Trainer & Übungsbälle</li>
-        <li><span class="check-icon">✓</span> Platzerlaubnisprüfung</li>
-        <li><span class="check-icon">✓</span> Einzelmitgliedschaft statt 1891 € um nur 45 €</li>
-        <li><span class="check-icon">✓</span> Dieses Angebot gilt nur für Personen, die noch keine Platzerlaubnis absolviert haben (ersichtlich über den ÖGV-Server).</li>
-        <li><span class="check-icon">✓</span> Dieser Kurs berechtigt dich nur zum Spielen am Golfpark Metzenhof.</li>
-      </ul>
-    </div>
+    <p class="workshop-intro">
+      Ein wichtiger Bestandteil unseres GEMMA GOLFN Kursprogramms sind die seit Jahren sehr beliebten Workshops. 
+      Du arbeitest mit unseren Professionals gezielt an spezifischen Themen wie kurzes Spiel, langes Spiel, Bunker und vieles mehr. 
+      Besonders wichtig ist hierbei das Training in der kleinen Gruppe um Dir die maximale Trainingseffizienz gewährleisten zu können.
+    </p>
+    <p class="workshop-intro">
+      Die Workshops sind für jeden Golfer geeignet, ob Mannschaftsspieler oder Platzreifespieler. 
+      Unsere Pros haben für jeden die passenden Tipps parat.
+    </p>
+    <p class="workshop-intro highlight"><strong>Ab 2 Teilnehmern individuell vereinbar – so kannst du flexibel trainieren, wann es dir am besten passt!</strong></p>
   </div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════
-     MAIN CONTENT – TERMINE
+     MAIN – WORKSHOP AUSWAHL & TERMINE
      ═══════════════════════════════════════════════════════════ -->
 <main class="container">
   
-  <!-- TERMINE ÜBERSICHT -->
   <section class="card termine-section">
     <div class="card-header">
-      <h2>Verfügbare Termine</h2>
-      <p class="termine-subtitle">Wähle deinen Wunschtermin für den Platzerlaubniskurs</p>
+      <h2>Workshop buchen</h2>
+      <p class="termine-subtitle">Wähle deinen Workshop und einen verfügbaren Termin</p>
     </div>
     
-    <div id="slots-container" class="termine-grid">
-      <div class="termine-loading">
-        <div class="loading-spinner"></div>
-        <span>Termine werden geladen...</span>
+    <!-- Workshop-Kategorie Dropdown -->
+    <div class="workshop-select-wrapper">
+      <label for="workshop-select">Workshop-Kategorie:</label>
+      <select id="workshop-select" class="workshop-select">
+        <option value="">– Workshop wählen –</option>
+      </select>
+    </div>
+    
+    <!-- Workshop-Details (Preis, Dauer, Beschreibung) -->
+    <div id="workshop-details" class="workshop-details hidden">
+      <div class="workshop-details-inner">
+        <h3 id="workshop-detail-title"></h3>
+        <p id="workshop-detail-desc" class="workshop-detail-desc"></p>
+        <div class="workshop-meta">
+          <span id="workshop-detail-price" class="workshop-meta-item"></span>
+          <span id="workshop-detail-duration" class="workshop-meta-item"></span>
+          <span id="workshop-detail-participants" class="workshop-meta-item">2–4 Teilnehmer</span>
+        </div>
       </div>
     </div>
     
-    <!-- Legal-Hinweis -->
+    <!-- Terminliste -->
+    <div id="slots-container" class="termine-grid">
+      <div class="termine-loading termine-empty" id="slots-placeholder">
+        <span>Wähle zuerst eine Workshop-Kategorie.</span>
+      </div>
+    </div>
+    
     <div class="booking-hinweis">
       <p class="hinweis-text">
         <strong>Hinweis:</strong> Mit Auswahl eines Termins beginnt der Buchungsvorgang für eine kostenpflichtige Leistung mit fixem Termin.
@@ -102,21 +105,18 @@
   <div class="footer-inner">
     <div class="footer-section">
       <h5>Kontakt</h5>
-      <p>Golfplatz Kronstorf-Steyr BetriebsgesmbH</p>
-      <p>Dörfling 2, 4484 Kronstorf</p>
+      <p>Gemma Golfn GmbH · Dörfling 2, 4484 Kronstorf</p>
       <p style="margin-top: 1rem;">
-        <a href="mailto:golf@metzenhof.at">golf@metzenhof.at</a>
+        <a href="mailto:office@gemma-golfn.at">office@gemma-golfn.at</a>
       </p>
-      <p><a href="tel:+4372257389">+43 7225 7389</a></p>
+      <p><a href="tel:+437225738910">+43 7225 7389 10</a></p>
     </div>
     
     <div class="footer-section">
       <h5>Informationen</h5>
       <a href="https://www.metzenhof.at/unser-golfplatz/" target="_blank">Unser Golfplatz</a>
       <a href="https://www.metzenhof.at/golf/gemma-golfn/" target="_blank">Gemma Golfn</a>
-      <a href="agb.html">AGB Kurs (GmbH)</a>
-      <a href="2009_statuten_metzenhof-1.pdf" target="_blank">Statuten Verein</a>
-      <a href="AGB Verein Golfpark Metzenhof.pdf" target="_blank">Mitgliedschaftsbedingungen</a>
+      <a href="agb.html">AGB</a>
       <a href="privacy.html">Datenschutz</a>
     </div>
     

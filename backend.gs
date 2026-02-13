@@ -1,80 +1,58 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * PLATZREIFE – Google Apps Script Backend
- * Golfclub Metzenhof
+ * WORKSHOP BUCHUNGSSYSTEM – Google Apps Script Backend
+ * Gemma Golfn / Golfclub Metzenhof
  * 
  * INSTALLATION:
- * 1. Google Sheets erstellen mit 4 Tabs: Slots, Bookings, Participants, Settings
- * 2. script.google.com → Neues Projekt
- * 3. Diesen Code einfügen
- * 4. SPREADSHEET_ID unten eintragen
- * 5. Bereitstellen → Als Web-App bereitstellen
- *    - Ausführen als: Ich
- *    - Zugriff: Jeder
- * 6. URL kopieren und in app.js / admin.js / cancel.html eintragen
+ * 1. Neues Google Sheet erstellen mit Tabs: Workshops, Slots, Bookings, Participants, Settings
+ * 2. initSheets() ausführen (oder Header manuell anlegen)
+ * 3. seedWorkshops() + seedSlotsFromFlyer_March() ausführen
+ * 4. SPREADSHEET_ID eintragen, Bereitstellen als Web-App
+ * 5. URL in app.js, admin.js, cancel.html eintragen
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-// ══════════════════════════════════════════════════════════════════════════════
-// KONFIGURATION
-// ══════════════════════════════════════════════════════════════════════════════
+const SPREADSHEET_ID = "DEINE_SPREADSHEET_ID";
 
-// WICHTIG: Google Sheets ID hier eintragen!
-const SPREADSHEET_ID = "1NkaviS-fPq_A04HntatthchUYgjTto04Adicd-LvmBg"
-
-// Sheet-Namen
+const SHEET_WORKSHOPS = "Workshops";
 const SHEET_SLOTS = "Slots";
-const SHEET_BOOKINGS = "Bookings"; 
+const SHEET_BOOKINGS = "Bookings";
 const SHEET_PARTICIPANTS = "Participants";
 const SHEET_SETTINGS = "Settings";
+
+const MAX_PARTICIPANTS = 4;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HILFSFUNKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Spreadsheet öffnen
- */
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
 
-/**
- * Sheet nach Name holen
- */
 function getSheet(name) {
   return getSpreadsheet().getSheetByName(name);
 }
 
-/**
- * Einstellung aus Settings-Sheet lesen
- */
 function getSetting(key) {
   const sheet = getSheet(SHEET_SETTINGS);
+  if (!sheet) return null;
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === key) {
-      return data[i][1];
-    }
+    if (data[i][0] === key) return data[i][1];
   }
   return null;
 }
 
-/**
- * Eindeutige Buchungs-ID generieren
- */
 function generateBookingId() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let id = "PL-";
+  let id = "WS-";
   for (let i = 0; i < 6; i++) {
     id += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return id;
 }
 
-/**
- * Cancel-Token generieren
- */
 function generateCancelToken() {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let token = "";
@@ -84,284 +62,165 @@ function generateCancelToken() {
   return token;
 }
 
-/**
- * JSON-Response senden
- */
 function jsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
-/**
- * GLOBALE HILFSFUNKTION: Datum-Teil aus verschiedenen Formaten extrahieren
- * Gibt immer YYYY-MM-DD zurück (lokale Zeitzone für Date-Objekte)
- */
 function extractSlotDateId(value) {
   if (!value) return "";
-  
-  // Wenn es ein Date-Objekt ist (aus Google Sheets)
   if (value instanceof Date) {
-    // Lokale Zeitzone verwenden (wie in Google Sheets angezeigt)
     const y = value.getFullYear();
     const m = String(value.getMonth() + 1).padStart(2, '0');
     const d = String(value.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
-  
-  // Wenn es ein String ist
   const str = String(value).trim();
-  
-  // ISO-Format mit T: 2026-02-24T23:00:00.000Z
-  // Hier nur den Teil vor T nehmen
-  if (str.includes('T')) {
-    return str.split('T')[0];
-  }
-  
-  // Bereits im Format YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    return str;
-  }
-  
-  // Fallback
+  if (str.includes('T')) return str.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
   return str;
 }
 
-/**
- * Datum formatieren für E-Mail
- */
 function formatDateForEmail(dateValue) {
   const weekdays = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-  
   let date;
-  
-  // Wenn es bereits ein Date-Objekt ist
-  if (dateValue instanceof Date) {
-    date = dateValue;
-  } 
-  // Wenn es ein String ist
+  if (dateValue instanceof Date) date = dateValue;
   else if (typeof dateValue === "string") {
-    // ISO-Format mit T: 2026-02-24T23:00:00.000Z
-    if (dateValue.includes('T')) {
-      date = new Date(dateValue);
-    } 
-    // Einfaches Format: 2026-02-25
+    if (dateValue.includes('T')) date = new Date(dateValue);
     else if (dateValue.includes('-')) {
       const [year, month, day] = dateValue.split("-");
       date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    }
-    else {
-      date = new Date(dateValue);
-    }
-  }
-  else {
-    // Fallback
-    date = new Date(dateValue);
-  }
-  
+    } else date = new Date(dateValue);
+  } else date = new Date(dateValue);
   const weekday = weekdays[date.getDay()];
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  
   return `${weekday}, ${day}.${month}.${year}`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// API ENDPUNKTE
+// API
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * HTTP GET Handler
- * Unterstützt auch Buchungen via GET (für CORS-Kompatibilität)
- */
 function doGet(e) {
-  // Sicherheitsprüfung für fehlende Parameter
   if (!e || !e.parameter) {
-    return jsonResponse({ ok: false, message: "Keine Parameter übergeben" });
+    return jsonResponse({ ok: false, message: "Keine Parameter" });
   }
-  
   const action = e.parameter.action;
   
   switch (action) {
-    case "slots":
-      return handleGetSlots();
-      
-    case "book":
-      // Buchung via GET mit Base64-kodierten Daten (CORS-sicher)
-      return handleBookViaGet(e.parameter.data);
-      
-    case "cancel":
-      return handleCancel(e.parameter.token);
-      
-    case "admin_bookings":
-      return handleAdminBookings(e.parameter.admin_key);
-      
-    case "admin_export_csv":
-      return handleAdminExportCsv(e.parameter.admin_key);
-      
-    case "admin_update":
-      // Admin-Update: Checkboxen und Bezahldatum ändern
-      return handleAdminUpdate(e.parameter);
-      
-    case "admin_cancel":
-      // Admin-Stornierung
-      return handleAdminCancel(e.parameter);
-      
-    case "admin_restore":
-      // Admin-Wiederherstellung (Stornierung rückgängig)
-      return handleAdminRestore(e.parameter);
-      
-    case "admin_add_booking":
-      // Admin: Neue Buchung hinzufügen
-      return handleAdminAddBooking(e.parameter);
-      
-    default:
-      return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
+    case "workshops": return handleGetWorkshops();
+    case "slots": return handleGetSlots(e.parameter.workshop_id);
+    case "book": return handleBookViaGet(e.parameter.data);
+    case "cancel": return handleCancel(e.parameter.token);
+    case "admin_bookings": return handleAdminBookings(e.parameter.admin_key);
+    case "admin_export_csv": return handleAdminExportCsv(e.parameter.admin_key);
+    case "admin_slots": return handleAdminSlots(e.parameter.admin_key);
+    case "admin_add_slot": return handleAdminAddSlot(e.parameter);
+    default: return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
   }
 }
 
-/**
- * Buchung via GET-Request verarbeiten (Base64-kodierte Daten)
- */
 function handleBookViaGet(base64Data) {
   try {
-    if (!base64Data) {
-      return jsonResponse({ 
-        ok: false, 
-        success: false, 
-        error: "Keine Buchungsdaten übermittelt" 
-      });
-    }
-    
-    // Base64 dekodieren
+    if (!base64Data) return jsonResponse({ ok: false, success: false, error: "Keine Buchungsdaten" });
     const jsonString = Utilities.newBlob(Utilities.base64Decode(base64Data)).getDataAsString("UTF-8");
     const payload = JSON.parse(jsonString);
-    
-    // An die normale Buchungsfunktion weiterleiten
     return handleBook(payload);
-    
   } catch (error) {
-    console.error("handleBookViaGet Fehler:", error);
-    return jsonResponse({ 
-      ok: false, 
-      success: false, 
-      error: "Fehler beim Verarbeiten der Buchung: " + error.message 
-    });
-  }
-}
-
-/**
- * HTTP POST Handler
- * Unterstützt sowohl application/json als auch text/plain (für CORS)
- */
-function doPost(e) {
-  try {
-    const action = e.parameter.action;
-    
-    if (action === "book") {
-      // Payload parsen (funktioniert für beide Content-Types)
-      let payload;
-      try {
-        payload = JSON.parse(e.postData.contents);
-      } catch (parseError) {
-        return jsonResponse({ 
-          ok: false, 
-          success: false,
-          error: "Ungültige Anfrage-Daten" 
-        });
-      }
-      
-      return handleBook(payload);
-    }
-    
-    return jsonResponse({ ok: false, success: false, message: "Unbekannte Aktion" });
-    
-  } catch (error) {
-    console.error("doPost Fehler:", error);
-    return jsonResponse({ 
-      ok: false, 
-      success: false, 
-      error: "Server-Fehler: " + error.message 
-    });
+    return jsonResponse({ ok: false, success: false, error: "Fehler: " + error.message });
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SLOTS ABRUFEN
+// WORKSHOPS
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Alle Slots mit Verfügbarkeit zurückgeben (inkl. ausgebuchte)
- */
-function handleGetSlots() {
-  const sheet = getSheet(SHEET_SLOTS);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
+function handleGetWorkshops() {
+  const sheet = getSheet(SHEET_WORKSHOPS);
+  if (!sheet) return jsonResponse({ ok: false, workshops: [] });
   
-  const slots = [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return jsonResponse({ ok: true, workshops: [] });
+  
+  const headers = data[0];
+  const workshops = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
+    const isActive = row[7] !== false && row[7] !== "FALSE" && row[7] !== "";
+    if (!isActive) continue;
     
-    // Datum als YYYY-MM-DD String formatieren (lokale Zeitzone)
-    const dateId = extractSlotDateId(row[0]);
+    workshops.push({
+      workshop_id: row[0],
+      title: row[1],
+      description: row[2],
+      duration_text: row[3],
+      price_eur: parseInt(row[4]) || 50,
+      min_participants: parseInt(row[5]) || 2,
+      max_participants: parseInt(row[6]) || MAX_PARTICIPANTS,
+      is_active: true
+    });
+  }
+  return jsonResponse({ ok: true, workshops });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SLOTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function handleGetSlots(workshopId) {
+  if (!workshopId) return jsonResponse({ ok: false, slots: [] });
+  
+  const sheet = getSheet(SHEET_SLOTS);
+  if (!sheet) return jsonResponse({ ok: true, slots: [] });
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return jsonResponse({ ok: true, slots: [] });
+  
+  const slots = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[1]) !== String(workshopId)) continue; // workshop_id Spalte 2
     
-    if (!dateId) continue; // Ungültige Zeilen überspringen
+    const dateId = extractSlotDateId(row[2]); // date
+    if (!dateId) continue;
     
-    const capacity = row[4] || 8;
-    const booked = row[5] || 0;
-    const status = row[6] || "OPEN";
-    const free = capacity - booked;
+    const slotDate = new Date(dateId);
+    if (slotDate < today) continue; // Vergangene Slots nicht liefern
     
-    const slot = {
-      slot_id: dateId,
+    const capacity = parseInt(row[5]) || MAX_PARTICIPANTS;
+    const booked = parseInt(row[6]) || 0;
+    const status = row[7] || "OPEN";
+    
+    slots.push({
+      slot_id: row[0],
+      workshop_id: row[1],
       date: dateId,
-      date_display: formatDateDisplay(row[0]),
-      start: "09:00",
-      end: "15:00",
-      capacity: capacity,
-      booked: booked,
-      free: free,
-      status: free <= 0 ? "FULL" : status  // Status automatisch auf FULL wenn ausgebucht
-    };
-    
-    // ALLE Slots zurückgeben (auch ausgebuchte - Frontend zeigt sie rot an)
-    slots.push(slot);
+      start: row[3] || "10:00",
+      end: row[4] || "12:00",
+      capacity,
+      booked,
+      free: Math.max(0, capacity - booked),
+      status: (capacity - booked) <= 0 ? "FULL" : status
+    });
   }
   
-  return jsonResponse({ ok: true, slots: slots });
-}
-
-/**
- * Datum für Anzeige formatieren (DD.MM.YYYY)
- */
-function formatDateDisplay(value) {
-  if (!value) return "";
-  if (value instanceof Date) {
-    const d = String(value.getDate()).padStart(2, '0');
-    const m = String(value.getMonth() + 1).padStart(2, '0');
-    const y = value.getFullYear();
-    return `${d}.${m}.${y}`;
-  }
-  return extractSlotDateId(value);
+  return jsonResponse({ ok: true, slots });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BUCHUNG DURCHFÜHREN
+// BUCHUNG
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Buchung verarbeiten (mit Lock gegen Race Conditions)
- */
 function handleBook(payload) {
   const lock = LockService.getScriptLock();
-  
   try {
-    // Lock erwerben (max 30 Sekunden warten)
     lock.waitLock(30000);
     
-    // Validierung
-    if (!payload.slot_id || !payload.contact_email || !payload.participants || payload.participants.length === 0) {
+    if (!payload.slot_id || !payload.workshop_id || !payload.contact_email || !payload.participants || payload.participants.length === 0) {
       return jsonResponse({ ok: false, message: "Unvollständige Buchungsdaten" });
     }
     
@@ -370,160 +229,112 @@ function handleBook(payload) {
     }
     
     const participantCount = payload.participants.length;
-    if (participantCount < 1 || participantCount > 8) {
-      return jsonResponse({ ok: false, message: "Ungültige Teilnehmeranzahl (1-8)" });
+    if (participantCount < 1 || participantCount > MAX_PARTICIPANTS) {
+      return jsonResponse({ ok: false, message: "Ungültige Teilnehmeranzahl (1–" + MAX_PARTICIPANTS + ")" });
     }
     
-    // Slot prüfen - flexible Datumssuche
     const slotsSheet = getSheet(SHEET_SLOTS);
     const slotsData = slotsSheet.getDataRange().getValues();
     
     let slotRowIndex = -1;
     let slotData = null;
     
-    const searchDate = extractSlotDateId(payload.slot_id);
-    console.log("Suche nach Datum:", searchDate);
-    
     for (let i = 1; i < slotsData.length; i++) {
-      const slotDatePart = extractSlotDateId(slotsData[i][0]);
+      const row = slotsData[i];
+      const slotIdMatch = String(row[0]) === String(payload.slot_id);
+      const workshopMatch = String(row[1]) === String(payload.workshop_id);
       
-      // Vergleiche Datum-Teile (ignoriere Zeitzone)
-      if (slotDatePart === searchDate) {
-        slotRowIndex = i + 1; // 1-indexed für Sheet
+      if (slotIdMatch && workshopMatch) {
+        slotRowIndex = i + 1;
         slotData = {
-          slot_id: slotsData[i][0],
-          date: slotsData[i][1],
-          start: slotsData[i][2],
-          end: slotsData[i][3],
-          capacity: slotsData[i][4],
-          booked: slotsData[i][5],
-          status: slotsData[i][6]
+          slot_id: row[0],
+          workshop_id: row[1],
+          date: row[2],
+          start: row[3],
+          end: row[4],
+          capacity: parseInt(row[5]) || MAX_PARTICIPANTS,
+          booked: parseInt(row[6]) || 0,
+          status: row[7]
         };
-        console.log("Slot gefunden in Zeile:", slotRowIndex);
         break;
       }
     }
     
-    if (!slotData) {
-      return jsonResponse({ ok: false, message: "Termin nicht gefunden" });
+    if (!slotData) return jsonResponse({ ok: false, message: "Termin nicht gefunden" });
+    if (slotData.status === "FULL") return jsonResponse({ ok: false, message: "Termin ausgebucht" });
+    
+    const free = slotData.capacity - slotData.booked;
+    if (participantCount > free) {
+      return jsonResponse({ ok: false, message: "Nur noch " + free + " Plätze verfügbar" });
     }
     
-    if (slotData.status !== "OPEN") {
-      return jsonResponse({ ok: false, message: "Termin nicht mehr verfügbar" });
-    }
-    
-    const freeSlots = slotData.capacity - slotData.booked;
-    if (participantCount > freeSlots) {
-      return jsonResponse({ ok: false, message: `Nur noch ${freeSlots} Plätze verfügbar` });
-    }
-    
-    // Buchung erstellen
     const bookingId = generateBookingId();
     const cancelToken = generateCancelToken();
     const timestamp = new Date().toISOString();
     
-    // Booking eintragen (inkl. Gutscheincode, Club-Felder, Newsletter und rechtliche Zustimmungen)
-    const terms = payload.terms_accepted || {};
     const bookingsSheet = getSheet(SHEET_BOOKINGS);
     bookingsSheet.appendRow([
       bookingId,
       timestamp,
       payload.slot_id,
+      payload.workshop_id,
       payload.contact_email,
-      payload.contact_phone || "",
       participantCount,
       "CONFIRMED",
       cancelToken,
-      "", // cancelled_at
-      false, // invoice_sent_gmbh
-      false, // appeared
-      false, // membership_form
-      false, // dsgvo_form
-      "", // paid_date_gmbh
-      payload.voucher_code || "", // Gutscheincode
-      false, // invoice_sent_club
-      "", // paid_date_club
-      terms.newsletter || false, // Newsletter-Anmeldung
-      // Rechtliche Zustimmungen
-      terms.agb_kurs || false,
-      terms.privacy_accepted || false,
-      terms.membership_statutes || false,
-      terms.partner_awareness || false,
-      terms.cancellation_notice || false,
-      terms.fagg_consent || false,
-      terms.third_party_consent || null,
-      terms.accepted_at || "",
-      terms.terms_version || "",
-      terms.user_agent || ""
+      ""
     ]);
     
-    // Participants eintragen
     const participantsSheet = getSheet(SHEET_PARTICIPANTS);
     payload.participants.forEach((p, idx) => {
       participantsSheet.appendRow([
         bookingId,
         idx + 1,
-        p.first_name,
-        p.last_name,
-        p.birthdate || "",
-        p.street,
-        p.house_no,
-        p.zip,
-        p.city,
-        p.country || "AT"
+        p.first_name || "",
+        p.last_name || "",
+        p.email || ""
       ]);
     });
     
-    // Slot-Zähler erhöhen
     const newBooked = slotData.booked + participantCount;
-    slotsSheet.getRange(slotRowIndex, 6).setValue(newBooked);
-    
-    // Falls voll, Status ändern
+    slotsSheet.getRange(slotRowIndex, 7).setValue(newBooked);
     if (newBooked >= slotData.capacity) {
-      slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
+      slotsSheet.getRange(slotRowIndex, 8).setValue("FULL");
     }
     
-    // E-Mails senden (optional - falls Gmail nicht aktiviert ist, wird trotzdem gebucht)
     let emailSent = false;
     try {
       sendBookingConfirmationEmail(bookingId, payload, slotData, cancelToken);
       sendAdminNotificationEmail(bookingId, payload, slotData);
       emailSent = true;
-      console.log("E-Mails erfolgreich gesendet");
     } catch (emailError) {
-      console.warn("E-Mail-Versand fehlgeschlagen (Gmail nicht aktiviert?):", emailError.message);
-      // Buchung ist trotzdem erfolgreich - nur E-Mail fehlt
+      console.warn("E-Mail Fehler:", emailError.message);
     }
     
-    return jsonResponse({ 
-      ok: true, 
+    return jsonResponse({
+      ok: true,
+      success: true,
       booking_id: bookingId,
-      message: emailSent ? "Buchung erfolgreich" : "Buchung erfolgreich (ohne E-Mail-Bestätigung)",
+      message: "Buchung erfolgreich",
       email_sent: emailSent
     });
     
   } catch (error) {
     console.error("Buchungsfehler:", error);
-    return jsonResponse({ ok: false, message: "Ein Fehler ist aufgetreten: " + error.message });
+    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
   } finally {
     lock.releaseLock();
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STORNIERUNG
+// STORNO
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Buchung stornieren
- */
 function handleCancel(token) {
-  if (!token) {
-    return jsonResponse({ ok: false, message: "Kein Stornierungstoken angegeben" });
-  }
+  if (!token) return jsonResponse({ ok: false, message: "Kein Token" });
   
   const lock = LockService.getScriptLock();
-  
   try {
     lock.waitLock(30000);
     
@@ -534,693 +345,262 @@ function handleCancel(token) {
     let bookingData = null;
     
     for (let i = 1; i < bookingsData.length; i++) {
-      if (bookingsData[i][7] === token) { // cancel_token ist Spalte 8 (Index 7)
+      if (bookingsData[i][7] === token) {
         bookingRowIndex = i + 1;
         bookingData = {
           booking_id: bookingsData[i][0],
-          timestamp: bookingsData[i][1],
           slot_id: bookingsData[i][2],
-          contact_email: bookingsData[i][3],
-          contact_phone: bookingsData[i][4],
+          workshop_id: bookingsData[i][3],
+          contact_email: bookingsData[i][4],
           participants_count: bookingsData[i][5],
-          status: bookingsData[i][6],
-          cancel_token: bookingsData[i][7],
-          cancelled_at: bookingsData[i][8]
+          status: bookingsData[i][6]
         };
         break;
       }
     }
     
-    if (!bookingData) {
-      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
-    }
+    if (!bookingData) return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
     
-    // Bereits storniert?
     if (bookingData.status === "CANCELLED") {
-      return jsonResponse({ 
-        ok: true, 
-        already_cancelled: true,
-        booking_id: bookingData.booking_id,
-        message: "Buchung war bereits storniert"
-      });
+      return jsonResponse({ ok: true, already_cancelled: true, booking_id: bookingData.booking_id, message: "Bereits storniert" });
     }
     
-    // Stornierung durchführen
     const cancelledAt = new Date().toISOString();
-    bookingsSheet.getRange(bookingRowIndex, 7).setValue("CANCELLED"); // status
-    bookingsSheet.getRange(bookingRowIndex, 9).setValue(cancelledAt); // cancelled_at
+    bookingsSheet.getRange(bookingRowIndex, 7).setValue("CANCELLED");
+    bookingsSheet.getRange(bookingRowIndex, 9).setValue(cancelledAt);
     
-    // Slot-Zähler reduzieren
     const slotsSheet = getSheet(SHEET_SLOTS);
     const slotsData = slotsSheet.getDataRange().getValues();
     
     for (let i = 1; i < slotsData.length; i++) {
-      if (slotsData[i][0] === bookingData.slot_id) {
-        const currentBooked = slotsData[i][5];
+      const row = slotsData[i];
+      if (String(row[0]) === String(bookingData.slot_id) && String(row[1]) === String(bookingData.workshop_id)) {
+        const currentBooked = parseInt(row[6]) || 0;
         const newBooked = Math.max(0, currentBooked - bookingData.participants_count);
-        slotsSheet.getRange(i + 1, 6).setValue(newBooked);
-        
-        // Falls vorher voll, wieder öffnen
-        if (slotsData[i][6] === "FULL" && newBooked < slotsData[i][4]) {
-          slotsSheet.getRange(i + 1, 7).setValue("OPEN");
+        slotsSheet.getRange(i + 1, 7).setValue(newBooked);
+        if (row[7] === "FULL" && newBooked < (row[5] || MAX_PARTICIPANTS)) {
+          slotsSheet.getRange(i + 1, 8).setValue("OPEN");
         }
         break;
       }
     }
     
-    // E-Mails senden
-    sendCancellationEmail(bookingData);
-    sendAdminCancellationEmail(bookingData);
+    try {
+      sendCancellationEmail(bookingData);
+      sendAdminCancellationEmail(bookingData);
+    } catch (e) { console.warn("E-Mail bei Storno:", e.message); }
     
-    return jsonResponse({ 
-      ok: true, 
-      booking_id: bookingData.booking_id,
-      message: "Buchung erfolgreich storniert"
-    });
+    return jsonResponse({ ok: true, booking_id: bookingData.booking_id, message: "Buchung storniert" });
     
   } catch (error) {
-    console.error("Stornierungsfehler:", error);
-    return jsonResponse({ ok: false, message: "Ein Fehler ist aufgetreten" });
+    return jsonResponse({ ok: false, message: "Fehler" });
   } finally {
     lock.releaseLock();
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ADMIN FUNKTIONEN
+// ADMIN
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Admin: Alle Buchungen abrufen
- */
 function handleAdminBookings(adminKey) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!adminKey || adminKey !== correctKey) {
+  if (!adminKey || adminKey !== getSetting("ADMIN_KEY")) {
     return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
   }
   
   const bookingsSheet = getSheet(SHEET_BOOKINGS);
-  const bookingsData = bookingsSheet.getDataRange().getValues();
-  
   const participantsSheet = getSheet(SHEET_PARTICIPANTS);
+  const workshopsSheet = getSheet(SHEET_WORKSHOPS);
+  
+  const bookingsData = bookingsSheet.getDataRange().getValues();
   const participantsData = participantsSheet.getDataRange().getValues();
   
-  // Participants nach booking_id gruppieren
   const participantsByBooking = {};
   for (let i = 1; i < participantsData.length; i++) {
-    const bookingId = participantsData[i][0];
-    if (!participantsByBooking[bookingId]) {
-      participantsByBooking[bookingId] = [];
-    }
-    // Geburtsdatum korrekt formatieren (Zeitzonenprobleme vermeiden)
-    let birthdate = participantsData[i][4];
-    if (birthdate instanceof Date) {
-      // Date-Objekt zu YYYY-MM-DD String konvertieren (lokale Zeitzone)
-      const y = birthdate.getFullYear();
-      const m = String(birthdate.getMonth() + 1).padStart(2, '0');
-      const d = String(birthdate.getDate()).padStart(2, '0');
-      birthdate = `${y}-${m}-${d}`;
-    }
-    
-    participantsByBooking[bookingId].push({
+    const bid = participantsData[i][0];
+    if (!participantsByBooking[bid]) participantsByBooking[bid] = [];
+    participantsByBooking[bid].push({
       idx: participantsData[i][1],
       first_name: participantsData[i][2],
       last_name: participantsData[i][3],
-      birthdate: birthdate || "",
-      street: participantsData[i][5],
-      house_no: participantsData[i][6],
-      zip: participantsData[i][7],
-      city: participantsData[i][8],
-      country: participantsData[i][9] || "AT"
+      email: participantsData[i][4] || ""
     });
   }
   
-  // Buchungen zusammenstellen (inkl. Admin-Felder)
+  const workshopTitles = {};
+  if (workshopsSheet) {
+    const wData = workshopsSheet.getDataRange().getValues();
+    for (let i = 1; i < wData.length; i++) {
+      workshopTitles[wData[i][0]] = wData[i][1];
+    }
+  }
+  
   const bookings = [];
   for (let i = 1; i < bookingsData.length; i++) {
     const row = bookingsData[i];
-    const bookingId = row[0];
-    
-    // slot_id als YYYY-MM-DD String formatieren (konsistent mit handleGetSlots)
-    const slotDateId = extractSlotDateId(row[2]);
-    
     bookings.push({
-      booking_id: bookingId,
+      booking_id: row[0],
       timestamp: row[1],
-      slot_id: slotDateId,  // Konvertiert zu YYYY-MM-DD
-      contact_email: row[3],
-      contact_phone: row[4],
+      slot_id: row[2],
+      workshop_id: row[3],
+      workshop_title: workshopTitles[row[3]] || row[3],
+      contact_email: row[4],
       participants_count: row[5],
       status: row[6],
       cancelled_at: row[8],
-      // Admin-Felder (Spalten 10-28, Index 9-27)
-      invoice_sent_gmbh: row[9] === true || row[9] === "TRUE" || row[9] === "true",
-      appeared: row[10] === true || row[10] === "TRUE" || row[10] === "true",
-      membership_form: row[11] === true || row[11] === "TRUE" || row[11] === "true",
-      dsgvo_form: row[12] === true || row[12] === "TRUE" || row[12] === "true",
-      paid_date_gmbh: row[13] || "",
-      voucher_code: row[14] || "",
-      invoice_sent_club: row[15] === true || row[15] === "TRUE" || row[15] === "true",
-      paid_date_club: row[16] || "",
-      newsletter: row[17] === true || row[17] === "TRUE" || row[17] === "true",
-      // Rechtliche Zustimmungen
-      agb_kurs: row[18] === true || row[18] === "TRUE" || row[18] === "true",
-      privacy_accepted: row[19] === true || row[19] === "TRUE" || row[19] === "true",
-      membership_statutes: row[20] === true || row[20] === "TRUE" || row[20] === "true",
-      partner_awareness: row[21] === true || row[21] === "TRUE" || row[21] === "true",
-      cancellation_notice: row[22] === true || row[22] === "TRUE" || row[22] === "true",
-      fagg_consent: row[23] === true || row[23] === "TRUE" || row[23] === "true",
-      third_party_consent: row[24] === true || row[24] === "TRUE" || row[24] === "true" || row[24] === null,
-      accepted_at: row[25] || "",
-      terms_version: row[26] || "",
-      user_agent: row[27] || "",
-      // Teilnehmer
-      participants: participantsByBooking[bookingId] || [],
-      // Zeilennummer für Updates (1-indexed)
-      row_index: i + 1
+      participants: participantsByBooking[row[0]] || []
     });
   }
   
-  return jsonResponse({ ok: true, bookings: bookings });
+  return jsonResponse({ ok: true, bookings });
 }
 
-/**
- * Admin: CSV Export
- */
 function handleAdminExportCsv(adminKey) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!adminKey || adminKey !== correctKey) {
-    return ContentService.createTextOutput("Ungültiger Admin-Schlüssel");
+  if (!adminKey || adminKey !== getSetting("ADMIN_KEY")) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, csv: "" })).setMimeType(ContentService.MimeType.JSON);
   }
   
   const bookingsSheet = getSheet(SHEET_BOOKINGS);
-  const bookingsData = bookingsSheet.getDataRange().getValues();
-  
   const participantsSheet = getSheet(SHEET_PARTICIPANTS);
+  const workshopsSheet = getSheet(SHEET_WORKSHOPS);
+  
+  const bookingsData = bookingsSheet.getDataRange().getValues();
   const participantsData = participantsSheet.getDataRange().getValues();
   
-  // CSV Header
-  let csv = "Buchungs-ID;Buchungsdatum;Termin;E-Mail;Handynummer;Teilnehmer;Status;Storniert am;TN-Nr;Vorname;Nachname;Strasse;Hausnr;PLZ;Ort\n";
+  const workshopTitles = {};
+  if (workshopsSheet) {
+    const wData = workshopsSheet.getDataRange().getValues();
+    for (let i = 1; i < wData.length; i++) workshopTitles[wData[i][0]] = wData[i][1];
+  }
   
-  // Participants nach booking_id gruppieren
   const participantsByBooking = {};
   for (let i = 1; i < participantsData.length; i++) {
-    const bookingId = participantsData[i][0];
-    if (!participantsByBooking[bookingId]) {
-      participantsByBooking[bookingId] = [];
-    }
-    participantsByBooking[bookingId].push(participantsData[i]);
+    const bid = participantsData[i][0];
+    if (!participantsByBooking[bid]) participantsByBooking[bid] = [];
+    participantsByBooking[bid].push(participantsData[i]);
   }
   
-  // Zeilen erstellen
+  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;TN-Nr;Vorname;Nachname;E-Mail\n";
+  
   for (let i = 1; i < bookingsData.length; i++) {
-    const booking = bookingsData[i];
-    const bookingId = booking[0];
-    const slotDateId = extractSlotDateId(booking[2]); // Konvertiert zu YYYY-MM-DD
-    const participants = participantsByBooking[bookingId] || [];
+    const b = bookingsData[i];
+    const participants = participantsByBooking[b[0]] || [];
+    const workshopTitle = workshopTitles[b[3]] || b[3];
     
     if (participants.length > 0) {
-      participants.forEach(p => {
-        csv += [
-          bookingId,
-          booking[1], // timestamp
-          slotDateId, // slot_id (formatiert)
-          booking[3], // email
-          booking[4], // phone
-          booking[5], // count
-          booking[6], // status
-          booking[8] || "", // cancelled_at
-          p[1], // idx
-          p[2], // first_name
-          p[3], // last_name
-          p[4], // street
-          p[5], // house_no
-          p[6], // zip
-          p[7]  // city
-        ].join(";") + "\n";
+      participants.forEach((p, idx) => {
+        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], p[1], p[2], p[3], p[4] || ""].join(";") + "\n";
       });
     } else {
-      csv += [
-        bookingId,
-        booking[1],
-        slotDateId,
-        booking[3],
-        booking[4],
-        booking[5],
-        booking[6],
-        booking[8] || "",
-        "", "", "", "", "", "", ""
-      ].join(";") + "\n";
+      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], "", "", "", ""].join(";") + "\n";
     }
   }
   
-  // CSV als JSON zurückgeben für Client-Download
-  return ContentService
-    .createTextOutput(JSON.stringify({ success: true, csv: csv }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ success: true, csv })).setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
- * Admin: Buchung aktualisieren (Checkboxen, Bezahldatum)
+ * Admin: Alle Slots + Workshops für Terminverwaltung
  */
-function handleAdminUpdate(params) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!params.admin_key || params.admin_key !== correctKey) {
+function handleAdminSlots(adminKey) {
+  if (!adminKey || adminKey !== getSetting("ADMIN_KEY")) {
     return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
   }
   
-  const bookingId = params.booking_id;
-  const field = params.field;
-  const value = params.value;
-  
-  if (!bookingId || !field) {
-    return jsonResponse({ ok: false, message: "Fehlende Parameter" });
-  }
-  
-  // Erlaubte Felder
-  // Spalten: J=10, K=11, L=12, M=13, N=14, O=15, P=16, Q=17
-  const fieldMap = {
-    "invoice_sent_gmbh": 10,  // Spalte J (10) - Rechnung GmbH
-    "invoice_sent": 10,       // Alias für Abwärtskompatibilität
-    "appeared": 11,           // Spalte K (11)
-    "membership_form": 12,    // Spalte L (12)
-    "dsgvo_form": 13,         // Spalte M (13)
-    "paid_date_gmbh": 14,     // Spalte N (14) - Bezahlt GmbH
-    "paid_date": 14,          // Alias für Abwärtskompatibilität
-    "voucher_code": 15,       // Spalte O (15)
-    "invoice_sent_club": 16,  // Spalte P (16) - Rechnung Club (NEU)
-    "paid_date_club": 17      // Spalte Q (17) - Bezahlt Club (NEU)
-  };
-  
-  const colIndex = fieldMap[field];
-  if (!colIndex) {
-    return jsonResponse({ ok: false, message: "Ungültiges Feld: " + field });
-  }
-  
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-    
-    const sheet = getSheet(SHEET_BOOKINGS);
-    const data = sheet.getDataRange().getValues();
-    
-    // Buchung finden
-    let rowIndex = -1;
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === bookingId) {
-        rowIndex = i + 1; // 1-indexed
-        break;
+  const workshops = [];
+  const workshopsSheet = getSheet(SHEET_WORKSHOPS);
+  if (workshopsSheet) {
+    const wData = workshopsSheet.getDataRange().getValues();
+    for (let i = 1; i < wData.length; i++) {
+      if (wData[i][7] !== false && wData[i][7] !== "FALSE") {
+        workshops.push({ workshop_id: wData[i][0], title: wData[i][1] });
       }
     }
-    
-    if (rowIndex === -1) {
-      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
-    }
-    
-    // Wert setzen
-    let finalValue = value;
-    // Datum- und Text-Felder: Wert direkt übernehmen
-    const textFields = ["paid_date_gmbh", "paid_date_club", "paid_date", "voucher_code"];
-    if (!textFields.includes(field)) {
-      // Boolean für Checkboxen
-      finalValue = (value === "true" || value === true);
-    }
-    
-    sheet.getRange(rowIndex, colIndex).setValue(finalValue);
-    
-    console.log(`Buchung ${bookingId}: ${field} = ${finalValue}`);
-    
-    return jsonResponse({ ok: true, message: "Aktualisiert", booking_id: bookingId, field: field, value: finalValue });
-    
-  } catch (error) {
-    console.error("Admin-Update Fehler:", error);
-    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/**
- * Admin: Buchung stornieren
- */
-function handleAdminCancel(params) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!params.admin_key || params.admin_key !== correctKey) {
-    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
   }
   
-  const bookingId = params.booking_id;
+  const slots = [];
+  const slotsSheet = getSheet(SHEET_SLOTS);
+  const workshopTitles = {};
+  workshops.forEach(w => { workshopTitles[w.workshop_id] = w.title; });
   
-  if (!bookingId) {
-    return jsonResponse({ ok: false, message: "Keine Buchungs-ID angegeben" });
-  }
-  
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-    
-    const sheet = getSheet(SHEET_BOOKINGS);
-    const data = sheet.getDataRange().getValues();
-    
-    // Buchung finden
-    let rowIndex = -1;
-    let currentStatus = "";
-    let slotId = "";
-    let participantCount = 0;
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === bookingId) {
-        rowIndex = i + 1;
-        currentStatus = data[i][6];
-        slotId = data[i][2];
-        participantCount = data[i][5];
-        break;
-      }
-    }
-    
-    if (rowIndex === -1) {
-      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
-    }
-    
-    if (currentStatus === "CANCELLED") {
-      return jsonResponse({ ok: false, message: "Buchung bereits storniert" });
-    }
-    
-    // Status auf CANCELLED setzen
-    sheet.getRange(rowIndex, 7).setValue("CANCELLED");
-    sheet.getRange(rowIndex, 9).setValue(new Date().toISOString()); // cancelled_at
-    
-    // Slot-Zähler reduzieren
-    const slotsSheet = getSheet(SHEET_SLOTS);
-    const slotsData = slotsSheet.getDataRange().getValues();
-    
-    // Slot per Datum finden (flexible Suche)
-    const searchDate = extractSlotDateId(slotId);
-    
-    for (let i = 1; i < slotsData.length; i++) {
-      const slotDatePart = extractSlotDateId(slotsData[i][0]);
-      if (slotDatePart === searchDate) {
-        const currentBooked = slotsData[i][5] || 0;
-        const newBooked = Math.max(0, currentBooked - participantCount);
-        slotsSheet.getRange(i + 1, 6).setValue(newBooked);
-        
-        // Status wieder auf OPEN setzen falls vorher FULL
-        if (slotsData[i][6] === "FULL") {
-          slotsSheet.getRange(i + 1, 7).setValue("OPEN");
-        }
-        break;
-      }
-    }
-    
-    console.log(`Admin-Stornierung: ${bookingId}`);
-    
-    return jsonResponse({ ok: true, message: "Buchung storniert", booking_id: bookingId });
-    
-  } catch (error) {
-    console.error("Admin-Cancel Fehler:", error);
-    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/**
- * Admin: Stornierung rückgängig machen (Wiederherstellen)
- */
-function handleAdminRestore(params) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!params.admin_key || params.admin_key !== correctKey) {
-    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
-  }
-  
-  const bookingId = params.booking_id;
-  
-  if (!bookingId) {
-    return jsonResponse({ ok: false, message: "Keine Buchungs-ID angegeben" });
-  }
-  
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-    
-    const sheet = getSheet(SHEET_BOOKINGS);
-    const data = sheet.getDataRange().getValues();
-    
-    // Buchung finden
-    let rowIndex = -1;
-    let currentStatus = "";
-    let slotId = "";
-    let participantCount = 0;
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === bookingId) {
-        rowIndex = i + 1;
-        currentStatus = data[i][6];
-        slotId = data[i][2];
-        participantCount = data[i][5];
-        break;
-      }
-    }
-    
-    if (rowIndex === -1) {
-      return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
-    }
-    
-    if (currentStatus !== "CANCELLED") {
-      return jsonResponse({ ok: false, message: "Buchung ist nicht storniert" });
-    }
-    
-    // Prüfen ob Slot noch Platz hat
-    const slotsSheet = getSheet(SHEET_SLOTS);
-    const slotsData = slotsSheet.getDataRange().getValues();
-    
-    const searchDate = extractSlotDateId(slotId);
-    let slotRowIndex = -1;
-    let slotCapacity = 0;
-    let slotBooked = 0;
-    
-    for (let i = 1; i < slotsData.length; i++) {
-      const slotDatePart = extractSlotDateId(slotsData[i][0]);
-      if (slotDatePart === searchDate) {
-        slotRowIndex = i + 1;
-        slotCapacity = slotsData[i][4] || 8;
-        slotBooked = slotsData[i][5] || 0;
-        break;
-      }
-    }
-    
-    if (slotRowIndex === -1) {
-      return jsonResponse({ ok: false, message: "Termin nicht mehr vorhanden" });
-    }
-    
-    const freeSlots = slotCapacity - slotBooked;
-    if (participantCount > freeSlots) {
-      return jsonResponse({ ok: false, message: `Nur noch ${freeSlots} Plätze frei. Buchung hat ${participantCount} Teilnehmer.` });
-    }
-    
-    // Status auf CONFIRMED setzen
-    sheet.getRange(rowIndex, 7).setValue("CONFIRMED");
-    sheet.getRange(rowIndex, 9).setValue(""); // cancelled_at löschen
-    
-    // Slot-Zähler erhöhen
-    const newBooked = slotBooked + participantCount;
-    slotsSheet.getRange(slotRowIndex, 6).setValue(newBooked);
-    
-    // Falls voll, Status ändern
-    if (newBooked >= slotCapacity) {
-      slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
-    }
-    
-    console.log(`Admin-Wiederherstellung: ${bookingId}`);
-    
-    return jsonResponse({ ok: true, message: "Buchung wiederhergestellt", booking_id: bookingId });
-    
-  } catch (error) {
-    console.error("Admin-Restore Fehler:", error);
-    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/**
- * Admin: Neue Buchung manuell hinzufügen
- */
-function handleAdminAddBooking(params) {
-  const correctKey = getSetting("ADMIN_KEY");
-  
-  if (!params.admin_key || params.admin_key !== correctKey) {
-    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
-  }
-  
-  // Base64-kodierte Daten dekodieren
-  if (!params.data) {
-    return jsonResponse({ ok: false, message: "Keine Buchungsdaten übermittelt" });
-  }
-  
-  try {
-    const jsonString = Utilities.newBlob(Utilities.base64Decode(params.data)).getDataAsString("UTF-8");
-    const payload = JSON.parse(jsonString);
-    
-    // Validierung
-    if (!payload.slot_id) {
-      return jsonResponse({ ok: false, message: "Kein Termin ausgewählt" });
-    }
-    
-    if (!payload.participants || payload.participants.length === 0) {
-      return jsonResponse({ ok: false, message: "Keine Teilnehmer angegeben" });
-    }
-    
-    const participantCount = payload.participants.length;
-    
-    // Slot prüfen
-    const slotsSheet = getSheet(SHEET_SLOTS);
-    const slotsData = slotsSheet.getDataRange().getValues();
-    
-    const searchDate = extractSlotDateId(payload.slot_id);
-    console.log("Admin-Buchung: Suche nach Datum:", searchDate);
-    
-    let slotRowIndex = -1;
-    let slotData = null;
-    
-    for (let i = 1; i < slotsData.length; i++) {
-      const slotDatePart = extractSlotDateId(slotsData[i][0]);
-      console.log(`  Slot ${i}: ${slotsData[i][0]} -> ${slotDatePart}`);
-      
-      if (slotDatePart === searchDate) {
-        slotRowIndex = i + 1;
-        slotData = {
-          slot_id: slotsData[i][0],
-          capacity: slotsData[i][4] || 8,
-          booked: slotsData[i][5] || 0
-        };
-        console.log("  -> Gefunden!");
-        break;
-      }
-    }
-    
-    if (!slotData) {
-      console.log("Kein Slot gefunden für:", searchDate);
-      return jsonResponse({ ok: false, message: "Termin nicht gefunden: " + searchDate });
-    }
-    
-    const freeSlots = slotData.capacity - slotData.booked;
-    if (participantCount > freeSlots) {
-      return jsonResponse({ ok: false, message: `Nur noch ${freeSlots} Plätze verfügbar` });
-    }
-    
-    // Buchung erstellen
-    const lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-    
-    try {
-      const bookingId = generateBookingId();
-      const timestamp = new Date().toISOString();
-      
-      // Booking eintragen (mit Admin-Markierung, inkl. Gutscheincode, Club-Felder und rechtliche Zustimmungen)
-      const bookingsSheet = getSheet(SHEET_BOOKINGS);
-      bookingsSheet.appendRow([
-        bookingId,
-        timestamp,
-        payload.slot_id,
-        payload.contact_email || "admin@metzenhof.at",
-        payload.contact_phone || "",
-        participantCount,
-        "CONFIRMED",
-        "", // cancel_token (leer bei Admin-Buchung)
-        "", // cancelled_at
-        false, // invoice_sent_gmbh
-        false, // appeared
-        false, // membership_form
-        false, // dsgvo_form
-        "",    // paid_date_gmbh
-        payload.voucher_code || "", // Gutscheincode
-        false, // invoice_sent_club
-        "",    // paid_date_club
-        false, // Newsletter
-        // Rechtliche Zustimmungen (bei Admin-Buchung alle leer/false)
-        false, // agb_kurs
-        false, // privacy_accepted
-        false, // membership_statutes
-        false, // partner_awareness
-        false, // cancellation_notice
-        false, // fagg_consent
-        null,  // third_party_consent
-        "",    // accepted_at
-        "ADMIN", // terms_version
-        ""     // user_agent
-      ]);
-      
-      // Participants eintragen
-      const participantsSheet = getSheet(SHEET_PARTICIPANTS);
-      payload.participants.forEach((p, idx) => {
-        participantsSheet.appendRow([
-          bookingId,
-          idx + 1,
-          p.first_name || "",
-          p.last_name || "",
-          p.birthdate || "",
-          p.street || "",
-          p.house_no || "",
-          p.zip || "",
-          p.city || "",
-          p.country || "AT"
-        ]);
+  if (slotsSheet) {
+    const sData = slotsSheet.getDataRange().getValues();
+    for (let i = 1; i < sData.length; i++) {
+      const row = sData[i];
+      const dateId = extractSlotDateId(row[2]);
+      if (!dateId) continue;
+      slots.push({
+        slot_id: row[0],
+        workshop_id: row[1],
+        workshop_title: workshopTitles[row[1]] || row[1],
+        date: dateId,
+        start: row[3] || "10:00",
+        end: row[4] || "12:00",
+        capacity: parseInt(row[5]) || MAX_PARTICIPANTS,
+        booked: parseInt(row[6]) || 0,
+        status: row[7] || "OPEN"
       });
-      
-      // Slot-Zähler erhöhen
-      const newBooked = slotData.booked + participantCount;
-      slotsSheet.getRange(slotRowIndex, 6).setValue(newBooked);
-      
-      if (newBooked >= slotData.capacity) {
-        slotsSheet.getRange(slotRowIndex, 7).setValue("FULL");
-      }
-      
-      console.log(`Admin-Buchung erstellt: ${bookingId}`);
-      
-      return jsonResponse({ 
-        ok: true, 
-        booking_id: bookingId,
-        message: "Buchung erfolgreich erstellt"
-      });
-      
-    } finally {
-      lock.releaseLock();
     }
-    
-  } catch (error) {
-    console.error("Admin-AddBooking Fehler:", error);
-    return jsonResponse({ ok: false, message: "Fehler: " + error.message });
   }
+  
+  return jsonResponse({ ok: true, slots, workshops });
+}
+
+/**
+ * Admin: Neuen Termin anlegen
+ */
+function handleAdminAddSlot(params) {
+  if (!params.admin_key || params.admin_key !== getSetting("ADMIN_KEY")) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  
+  const workshopId = (params.workshop_id || "").toString().trim();
+  const date = (params.date || "").toString().trim();
+  const start = (params.start || "10:00").toString().trim();
+  const end = (params.end || "12:00").toString().trim();
+  
+  if (!workshopId || !date) {
+    return jsonResponse({ ok: false, message: "Workshop und Datum erforderlich" });
+  }
+  
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return jsonResponse({ ok: false, message: "Datum im Format YYYY-MM-DD eingeben" });
+  }
+  
+  const slotsSheet = getSheet(SHEET_SLOTS);
+  const sData = slotsSheet.getDataRange().getValues();
+  let maxNr = 0;
+  for (let i = 1; i < sData.length; i++) {
+    const row = sData[i];
+    if (String(row[1]) === workshopId && String(extractSlotDateId(row[2])) === date) {
+      const m = String(row[0]).match(/_(\d+)$/);
+      if (m) maxNr = Math.max(maxNr, parseInt(m[1]));
+    }
+  }
+  
+  const slotId = workshopId + "_" + date.replace(/-/g, "") + "_" + (maxNr + 1);
+  
+  slotsSheet.appendRow([slotId, workshopId, date, start, end, MAX_PARTICIPANTS, 0, "OPEN"]);
+  
+  return jsonResponse({ ok: true, message: "Termin angelegt", slot_id: slotId });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// E-MAIL FUNKTIONEN
+// E-MAIL
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Buchungsbestätigung an Kunde senden
- */
 function sendBookingConfirmationEmail(bookingId, payload, slotData, cancelToken) {
-  const baseUrl = getSetting("PUBLIC_BASE_URL") || "https://platzreife.metzenhof.at";
+  const baseUrl = getSetting("PUBLIC_BASE_URL") || "https://YOUR-GITHUB-USERNAME.github.io/workshop";
   const fromName = getSetting("MAIL_FROM_NAME") || "gemma golfn";
-  const cancelUrl = `${baseUrl}/cancel.html?token=${cancelToken}`;
+  const cancelUrl = baseUrl + "/cancel.html?token=" + cancelToken;
   
-  const participantsList = payload.participants.map((p, i) => 
-    `${i + 1}. ${p.first_name} ${p.last_name}`
-  ).join("\n");
+  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + ")").join("\n");
   
-  const subject = `Buchungsbestätigung – Platzerlaubnis-Kurs am ${formatDateForEmail(slotData.date)}`;
-  
+  const subject = "Buchungsbestätigung – Workshop am " + formatDateForEmail(slotData.date);
   const body = `
 Hallo,
 
-vielen Dank für Ihre Buchung beim Golfclub Metzenhof!
+vielen Dank für Ihre Workshop-Buchung bei Gemma Golfn!
 
 ═══════════════════════════════════════
 BUCHUNGSDETAILS
@@ -1234,64 +614,37 @@ Teilnehmer: ${payload.participants.length}
 ${participantsList}
 
 ═══════════════════════════════════════
-WICHTIGE INFORMATIONEN
-═══════════════════════════════════════
-
-• Bitte erscheinen Sie ca. 15 Minuten vor Kursbeginn
-• Leihschläger sind kostenfrei verfügbar
-• Bitte tragen Sie angemessene Golfkleidung
-• Die Zahlung erfolgt vor Ort
-
-═══════════════════════════════════════
 STORNIERUNG
 ═══════════════════════════════════════
 
 Falls Sie die Buchung stornieren möchten:
 ${cancelUrl}
 
-Kostenfreie Stornierung bis 7 Tage vor Kursbeginn möglich.
-
 ═══════════════════════════════════════
 
-Bei Fragen erreichen Sie uns unter:
-E-Mail: golf@metzenhof.at
-Telefon: +43 7225 7389
+Bei Fragen: office@gemma-golfn.at | +43 7225 7389 10
 
-Wir freuen uns auf Sie!
-
-Ihr Team vom Golfclub Metzenhof
-„mitanaund genießen"
-
---
-Golfplatz Kronstorf-Steyr BetriebsgesmbH
-Dörfling 2, 4484 Kronstorf
-www.metzenhof.at
+Ihr Team von Gemma Golfn
   `.trim();
   
-  GmailApp.sendEmail(payload.contact_email, subject, body, {
-    name: fromName
-  });
+  GmailApp.sendEmail(payload.contact_email, subject, body, { name: fromName });
 }
 
-/**
- * Admin-Benachrichtigung bei neuer Buchung
- */
 function sendAdminNotificationEmail(bookingId, payload, slotData) {
-  const adminEmail = getSetting("ADMIN_EMAIL") || "golf@metzenhof.at";
+  const adminEmail = getSetting("ADMIN_EMAIL") || "info@metzenhof.at";
+  const baseUrl = getSetting("PUBLIC_BASE_URL") || "";
+  const cancelToken = ""; // Wird aus Bookings gelesen wenn nötig
   
-  const participantsList = payload.participants.map((p, i) => 
-    `${i + 1}. ${p.first_name} ${p.last_name}, ${p.street} ${p.house_no}, ${p.zip} ${p.city}`
-  ).join("\n");
+  const participantsList = payload.participants.map((p, i) => (i + 1) + ". " + (p.first_name || "") + " " + (p.last_name || "") + " – " + (p.email || "")).join("\n");
   
-  const subject = `[Neue Buchung] ${bookingId} – ${formatDateForEmail(slotData.date)}`;
-  
+  const subject = "[Neue Buchung] " + bookingId + " – " + formatDateForEmail(slotData.date);
   const body = `
-Neue Platzerlaubnis-Buchung eingegangen!
+Neue Workshop-Buchung!
 
 Buchungs-ID: ${bookingId}
+Workshop: ${payload.workshop_id}
 Termin: ${formatDateForEmail(slotData.date)}, ${slotData.start}–${slotData.end} Uhr
 E-Mail: ${payload.contact_email}
-Telefon: ${payload.contact_phone || "–"}
 Teilnehmer: ${payload.participants.length}
 
 ${participantsList}
@@ -1300,796 +653,140 @@ ${participantsList}
   GmailApp.sendEmail(adminEmail, subject, body);
 }
 
-/**
- * Stornierungsbestätigung an Kunde senden
- */
 function sendCancellationEmail(bookingData) {
   const fromName = getSetting("MAIL_FROM_NAME") || "gemma golfn";
-  
-  const subject = `Stornierungsbestätigung – Buchung ${bookingData.booking_id}`;
-  
+  const subject = "Stornierungsbestätigung – Buchung " + bookingData.booking_id;
   const body = `
 Hallo,
 
 Ihre Buchung wurde erfolgreich storniert.
 
 Buchungs-ID: ${bookingData.booking_id}
-Storniert am: ${new Date().toLocaleString("de-AT")}
 
-Bei Fragen erreichen Sie uns unter:
-E-Mail: golf@metzenhof.at
-Telefon: +43 7225 7389
+Bei Fragen: office@gemma-golfn.at | +43 7225 7389 10
 
-Ihr Team vom Golfclub Metzenhof
+Ihr Team von Gemma Golfn
   `.trim();
-  
-  GmailApp.sendEmail(bookingData.contact_email, subject, body, {
-    name: fromName
-  });
+  GmailApp.sendEmail(bookingData.contact_email, subject, body, { name: fromName });
 }
 
-/**
- * Admin-Benachrichtigung bei Stornierung
- */
 function sendAdminCancellationEmail(bookingData) {
-  const adminEmail = getSetting("ADMIN_EMAIL") || "golf@metzenhof.at";
-  
-  const subject = `[Stornierung] ${bookingData.booking_id}`;
-  
-  const body = `
-Buchung storniert!
-
-Buchungs-ID: ${bookingData.booking_id}
-Termin: ${bookingData.slot_id}
-E-Mail: ${bookingData.contact_email}
-Teilnehmer: ${bookingData.participants_count}
-Storniert am: ${new Date().toLocaleString("de-AT")}
-  `.trim();
-  
+  const adminEmail = getSetting("ADMIN_EMAIL") || "info@metzenhof.at";
+  const subject = "[Stornierung] " + bookingData.booking_id;
+  const body = "Buchung storniert: " + bookingData.booking_id + " – " + bookingData.contact_email;
   GmailApp.sendEmail(adminEmail, subject, body);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SEEDER FUNKTION
+// INIT & SEEDER
 // ══════════════════════════════════════════════════════════════════════════════
 
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * PRÜF- UND REPARATURFUNKTION
- * Zählt alle Buchungen und korrigiert die booked-Werte in der Slots-Tabelle
- * Diese Funktion manuell im Script-Editor ausführen!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * DIAGNOSE-FUNKTION: Überprüft Daten auf Unstimmigkeiten
- * Führe diese Funktion im Script-Editor aus, um einen Bericht zu erhalten.
- * ÄNDERT KEINE DATEN - nur Analyse!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-function diagnoseData() {
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔍 DATENDIAGNOSE - Überprüfung aller Tabellen");
-  console.log("═══════════════════════════════════════════════════════════\n");
-  
-  const ss = getSpreadsheet();
-  const slotsSheet = ss.getSheetByName(SHEET_SLOTS);
-  const bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
-  const participantsSheet = ss.getSheetByName(SHEET_PARTICIPANTS);
-  
-  let errors = [];
-  let warnings = [];
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 1. BUCHUNGEN ANALYSIEREN
-  // ═══════════════════════════════════════════════════════════════════════════
-  console.log("📋 1. BUCHUNGEN-TABELLE");
-  console.log("─────────────────────────────────────────────────────────────");
-  
-  const bookingsData = bookingsSheet.getDataRange().getValues();
-  const bookingsHeaders = bookingsData[0];
-  console.log("   Header: " + bookingsHeaders.join(", "));
-  console.log("   Zeilen: " + (bookingsData.length - 1) + " Buchungen\n");
-  
-  const slotIdColIdx = bookingsHeaders.indexOf("slot_id");
-  const statusColIdx = bookingsHeaders.indexOf("status");
-  const countColIdx = bookingsHeaders.indexOf("participants_count");
-  const bookingIdColIdx = bookingsHeaders.indexOf("booking_id");
-  const voucherColIdx = bookingsHeaders.indexOf("voucher_code");
-  
-  // Buchungen pro Slot zählen
-  const bookingsBySlot = {};
-  let totalConfirmed = 0;
-  let totalCancelled = 0;
-  let totalParticipants = 0;
-  let bookingsWithVoucher = 0;
-  
-  for (let i = 1; i < bookingsData.length; i++) {
-    const row = bookingsData[i];
-    const bookingId = row[bookingIdColIdx];
-    const status = row[statusColIdx];
-    const slotDateId = extractSlotDateId(row[slotIdColIdx]);
-    const participantCount = parseInt(row[countColIdx]) || 1;
-    const voucher = voucherColIdx >= 0 ? row[voucherColIdx] : "";
-    
-    if (status === "CONFIRMED") {
-      totalConfirmed++;
-      totalParticipants += participantCount;
-      
-      if (!bookingsBySlot[slotDateId]) {
-        bookingsBySlot[slotDateId] = { count: 0, participants: 0, bookings: [] };
-      }
-      bookingsBySlot[slotDateId].count++;
-      bookingsBySlot[slotDateId].participants += participantCount;
-      bookingsBySlot[slotDateId].bookings.push(bookingId);
-    } else if (status === "CANCELLED") {
-      totalCancelled++;
-    }
-    
-    if (voucher) bookingsWithVoucher++;
-  }
-  
-  console.log("   ✓ Bestätigte Buchungen: " + totalConfirmed);
-  console.log("   ✕ Stornierte Buchungen: " + totalCancelled);
-  console.log("   👥 Gesamte Teilnehmer (bestätigt): " + totalParticipants);
-  console.log("   🎟️ Buchungen mit Gutschein: " + bookingsWithVoucher);
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 2. SLOTS ANALYSIEREN UND VERGLEICHEN
-  // ═══════════════════════════════════════════════════════════════════════════
-  console.log("\n\n📅 2. SLOTS-TABELLE (Vergleich mit Buchungen)");
-  console.log("─────────────────────────────────────────────────────────────");
-  
-  const slotsData = slotsSheet.getDataRange().getValues();
-  console.log("   Header: " + slotsData[0].join(", "));
-  console.log("   Zeilen: " + (slotsData.length - 1) + " Termine\n");
-  
-  console.log("   Termin          | Kapazität | Gebucht (Sheets) | Gebucht (tatsächlich) | Status    | Prüfung");
-  console.log("   ────────────────┼───────────┼──────────────────┼───────────────────────┼───────────┼─────────");
-  
-  for (let i = 1; i < slotsData.length; i++) {
-    const row = slotsData[i];
-    const slotId = extractSlotDateId(row[0]);
-    const capacity = parseInt(row[4]) || 8;
-    const bookedInSheet = parseInt(row[5]) || 0;
-    const statusInSheet = row[6] || "OPEN";
-    
-    const actualBooked = bookingsBySlot[slotId] ? bookingsBySlot[slotId].participants : 0;
-    const correctStatus = actualBooked >= capacity ? "FULL" : "OPEN";
-    
-    let check = "✓ OK";
-    if (bookedInSheet !== actualBooked) {
-      check = "❌ BOOKED FALSCH";
-      errors.push(`Slot ${slotId}: booked=${bookedInSheet}, sollte ${actualBooked} sein`);
-    } else if (statusInSheet !== correctStatus) {
-      check = "⚠️ STATUS FALSCH";
-      warnings.push(`Slot ${slotId}: status=${statusInSheet}, sollte ${correctStatus} sein`);
-    }
-    
-    console.log(`   ${slotId}   |     ${String(capacity).padStart(2)}    |        ${String(bookedInSheet).padStart(2)}        |          ${String(actualBooked).padStart(2)}           | ${statusInSheet.padEnd(9)} | ${check}`);
-  }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 3. TEILNEHMER ANALYSIEREN
-  // ═══════════════════════════════════════════════════════════════════════════
-  console.log("\n\n👥 3. TEILNEHMER-TABELLE");
-  console.log("─────────────────────────────────────────────────────────────");
-  
-  const participantsData = participantsSheet.getDataRange().getValues();
-  console.log("   Header: " + participantsData[0].join(", "));
-  console.log("   Zeilen: " + (participantsData.length - 1) + " Teilnehmer-Einträge\n");
-  
-  // Teilnehmer pro Buchung zählen
-  const participantsByBooking = {};
-  for (let i = 1; i < participantsData.length; i++) {
-    const bookingId = participantsData[i][0];
-    if (!participantsByBooking[bookingId]) {
-      participantsByBooking[bookingId] = 0;
-    }
-    participantsByBooking[bookingId]++;
-  }
-  
-  // Vergleich mit Buchungen
-  let participantMismatches = 0;
-  for (let i = 1; i < bookingsData.length; i++) {
-    const row = bookingsData[i];
-    const bookingId = row[bookingIdColIdx];
-    const declaredCount = parseInt(row[countColIdx]) || 1;
-    const actualCount = participantsByBooking[bookingId] || 0;
-    
-    if (declaredCount !== actualCount) {
-      participantMismatches++;
-      warnings.push(`Buchung ${bookingId}: participants_count=${declaredCount}, aber ${actualCount} Teilnehmer in Tabelle`);
-    }
-  }
-  
-  console.log("   Teilnehmer-Einträge gesamt: " + (participantsData.length - 1));
-  console.log("   Unstimmigkeiten: " + participantMismatches);
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ZUSAMMENFASSUNG
-  // ═══════════════════════════════════════════════════════════════════════════
-  console.log("\n\n═══════════════════════════════════════════════════════════");
-  console.log("📊 ZUSAMMENFASSUNG");
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  if (errors.length === 0 && warnings.length === 0) {
-    console.log("\n✅ ALLES IN ORDNUNG! Keine Unstimmigkeiten gefunden.");
-  } else {
-    if (errors.length > 0) {
-      console.log("\n❌ FEHLER (" + errors.length + "):");
-      errors.forEach(e => console.log("   • " + e));
-    }
-    if (warnings.length > 0) {
-      console.log("\n⚠️ WARNUNGEN (" + warnings.length + "):");
-      warnings.forEach(w => console.log("   • " + w));
-    }
-    console.log("\n💡 Führe recalculateBookedCounts() aus, um die Daten zu korrigieren.");
-  }
-  
-  console.log("\n═══════════════════════════════════════════════════════════");
-  console.log("🏁 Diagnose abgeschlossen");
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { errors, warnings };
-}
-
-/**
- * Zählt Buchungen neu und korrigiert die Slots-Tabelle
- * Führe diese Funktion aus, um Fehler zu beheben.
- */
-function recalculateBookedCounts() {
-  const ss = getSpreadsheet();
-  const slotsSheet = ss.getSheetByName(SHEET_SLOTS);
-  const bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
-  
-  if (!slotsSheet || !bookingsSheet) {
-    console.log("❌ Sheets nicht gefunden!");
-    return;
-  }
-  
-  // Alle Buchungen laden
-  const bookingsData = bookingsSheet.getDataRange().getValues();
-  const bookingsHeaders = bookingsData[0];
-  
-  // Spalten-Index finden
-  const slotIdColIdx = bookingsHeaders.indexOf("slot_id");
-  const statusColIdx = bookingsHeaders.indexOf("status");
-  const countColIdx = bookingsHeaders.indexOf("participants_count");
-  
-  console.log("📊 Buchungen analysieren...");
-  console.log(`   Spalten: slot_id=${slotIdColIdx}, status=${statusColIdx}, count=${countColIdx}`);
-  
-  // Zähler pro Slot-Datum erstellen
-  const bookingCounts = {};
-  
-  for (let i = 1; i < bookingsData.length; i++) {
-    const row = bookingsData[i];
-    const status = row[statusColIdx];
-    
-    // Nur CONFIRMED Buchungen zählen (nicht CANCELLED)
-    if (status !== "CONFIRMED") {
-      continue;
-    }
-    
-    // Slot-ID extrahieren (als YYYY-MM-DD)
-    const rawSlotId = row[slotIdColIdx];
-    const slotDateId = extractSlotDateId(rawSlotId);
-    
-    if (!slotDateId) {
-      console.log(`   ⚠️ Zeile ${i+1}: Ungültiges Datum: ${rawSlotId}`);
-      continue;
-    }
-    
-    const participantCount = parseInt(row[countColIdx]) || 1;
-    
-    if (!bookingCounts[slotDateId]) {
-      bookingCounts[slotDateId] = 0;
-    }
-    bookingCounts[slotDateId] += participantCount;
-    
-    console.log(`   Zeile ${i+1}: ${slotDateId} +${participantCount} Teilnehmer (Status: ${status})`);
-  }
-  
-  console.log("\n📅 Gezählte Buchungen pro Termin:");
-  for (const [date, count] of Object.entries(bookingCounts)) {
-    console.log(`   ${date}: ${count} Teilnehmer`);
-  }
-  
-  // Slots-Tabelle aktualisieren
-  const slotsData = slotsSheet.getDataRange().getValues();
-  console.log("\n🔧 Slots-Tabelle aktualisieren...");
-  
-  let fixedCount = 0;
-  
-  for (let i = 1; i < slotsData.length; i++) {
-    const row = slotsData[i];
-    const slotId = extractSlotDateId(row[0]); // slot_id
-    const capacity = row[4] || 8;
-    const currentBooked = row[5] || 0;
-    const currentStatus = row[6] || "OPEN";
-    
-    const actualBooked = bookingCounts[slotId] || 0;
-    const correctStatus = actualBooked >= capacity ? "FULL" : "OPEN";
-    
-    // Nur ändern wenn nötig
-    if (currentBooked !== actualBooked || currentStatus !== correctStatus) {
-      console.log(`   ${slotId}: booked ${currentBooked} → ${actualBooked}, status ${currentStatus} → ${correctStatus}`);
-      
-      // Zeile aktualisieren (Zeile i+1 wegen 1-basiertem Index)
-      slotsSheet.getRange(i + 1, 6).setValue(actualBooked);  // booked (Spalte F)
-      slotsSheet.getRange(i + 1, 7).setValue(correctStatus); // status (Spalte G)
-      fixedCount++;
-    } else {
-      console.log(`   ${slotId}: ✓ OK (booked=${actualBooked}, status=${correctStatus})`);
-    }
-  }
-  
-  console.log(`\n✅ Fertig! ${fixedCount} Slots korrigiert.`);
-  
-  return {
-    bookingCounts: bookingCounts,
-    fixedSlots: fixedCount
-  };
-}
-
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * ALLE SLOTS LÖSCHEN UND NEU ANLEGEN
- * Diese Funktion manuell im Script-Editor ausführen!
- * ACHTUNG: Löscht ALLE bestehenden Slots!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-function resetAndSeedSlots2026() {
-  // Neue Termine mit Kapazitäten (Stand: Januar 2026)
-  const slotsData = [
-    { date: "2026-02-28", capacity: 9 },
-    { date: "2026-03-07", capacity: 9 },
-    { date: "2026-03-14", capacity: 9 },
-    { date: "2026-03-21", capacity: 9 },
-    { date: "2026-03-28", capacity: 9 },
-    { date: "2026-04-04", capacity: 9 },
-    { date: "2026-04-18", capacity: 9 },
-    { date: "2026-04-25", capacity: 9 },
-    { date: "2026-05-01", capacity: 9 },
-    { date: "2026-05-02", capacity: 9 },
-    { date: "2026-05-16", capacity: 9 },
-    { date: "2026-05-30", capacity: 9 },
-    { date: "2026-06-13", capacity: 9 },
-    { date: "2026-06-20", capacity: 9 },
-    { date: "2026-06-27", capacity: 9 },
-    { date: "2026-07-04", capacity: 9 },
-    { date: "2026-07-18", capacity: 9 },
-    { date: "2026-08-01", capacity: 9 },
-    { date: "2026-08-08", capacity: 9 },
-    { date: "2026-08-15", capacity: 9 },
-    { date: "2026-08-22", capacity: 22 },
-    { date: "2026-08-29", capacity: 9 },
-    { date: "2026-09-05", capacity: 9 },
-    { date: "2026-09-19", capacity: 9 },
-    { date: "2026-10-03", capacity: 18 },
-    { date: "2026-10-17", capacity: 18 }
-  ];
-  
-  const sheet = getSheet(SHEET_SLOTS);
-  
-  // ALLE Daten löschen (außer Header falls vorhanden)
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.deleteRows(2, lastRow - 1);
-    console.log(`${lastRow - 1} alte Zeilen gelöscht.`);
-  }
-  
-  // Header setzen (falls leer)
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["slot_id", "date", "start", "end", "capacity", "booked", "status"]);
-  }
-  
-  // Neue Slots einfügen
-  slotsData.forEach(slot => {
-    sheet.appendRow([
-      slot.date,      // slot_id = Datum
-      slot.date,      // date
-      "09:00",        // start
-      "15:00",        // end
-      slot.capacity,  // capacity (variabel!)
-      0,              // booked
-      "OPEN"          // status
-    ]);
-  });
-  
-  console.log(`✅ ${slotsData.length} neue Slots für 2026 angelegt!`);
-  console.log("Termine:");
-  slotsData.forEach(s => console.log(`  ${s.date} - Kapazität: ${s.capacity}`));
-}
-
-/**
- * Alte Funktion (nicht mehr verwenden)
- * @deprecated Verwende resetAndSeedSlots2026() stattdessen
- */
-function seedSlots2026() {
-  console.log("⚠️ Diese Funktion ist veraltet! Verwende resetAndSeedSlots2026() stattdessen.");
-  resetAndSeedSlots2026();
-}
-
-/**
- * Settings initialisieren
- * Diese Funktion manuell im Script-Editor ausführen!
- */
-function initSettings() {
-  const sheet = getSheet(SHEET_SETTINGS);
-  
-  // Header setzen (falls leer)
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["key", "value"]);
-  }
-  
-  // Default Settings
-  const settings = [
-    ["ADMIN_EMAIL", "golf@metzenhof.at"],
-    ["MAIL_FROM_NAME", "gemma golfn"],
-    ["ADMIN_KEY", "CHANGE_THIS_SECRET_KEY"],
-    ["PUBLIC_BASE_URL", "https://platzreife.metzenhof.at"]
-  ];
-  
-  settings.forEach(s => {
-    sheet.appendRow(s);
-  });
-  
-  console.log("Settings initialisiert! Bitte ADMIN_KEY und PUBLIC_BASE_URL anpassen.");
-}
-
-/**
- * Sheet-Struktur initialisieren
- * Diese Funktion manuell im Script-Editor ausführen!
- */
 function initSheets() {
   const ss = getSpreadsheet();
   
-  // Slots Sheet
-  let slotsSheet = ss.getSheetByName(SHEET_SLOTS);
-  if (!slotsSheet) {
-    slotsSheet = ss.insertSheet(SHEET_SLOTS);
-    slotsSheet.appendRow(["slot_id", "date", "start", "end", "capacity", "booked", "status"]);
+  let ws = ss.getSheetByName(SHEET_WORKSHOPS);
+  if (!ws) { ws = ss.insertSheet(SHEET_WORKSHOPS); }
+  if (ws.getLastRow() === 0) {
+    ws.appendRow(["workshop_id", "title", "description", "duration_text", "price_eur", "min_participants", "max_participants", "is_active"]);
   }
   
-  // Bookings Sheet - mit Admin-Feldern, Gutscheincode und Club-Feldern
-  let bookingsSheet = ss.getSheetByName(SHEET_BOOKINGS);
-  if (!bookingsSheet) {
-    bookingsSheet = ss.insertSheet(SHEET_BOOKINGS);
-    bookingsSheet.appendRow([
-      "booking_id", "timestamp", "slot_id", "contact_email", "contact_phone", 
-      "participants_count", "status", "cancel_token", "cancelled_at",
-      "invoice_sent_gmbh", "appeared", "membership_form", "dsgvo_form", "paid_date_gmbh",
-      "voucher_code", "invoice_sent_club", "paid_date_club", "newsletter",
-      "agb_kurs", "privacy_accepted", "membership_statutes", "partner_awareness",
-      "cancellation_notice", "fagg_consent", "third_party_consent", "accepted_at",
-      "terms_version", "user_agent"
-    ]);
+  let sl = ss.getSheetByName(SHEET_SLOTS);
+  if (!sl) { sl = ss.insertSheet(SHEET_SLOTS); }
+  if (sl.getLastRow() === 0) {
+    sl.appendRow(["slot_id", "workshop_id", "date", "start", "end", "capacity", "booked", "status"]);
   }
   
-  // Participants Sheet
-  let participantsSheet = ss.getSheetByName(SHEET_PARTICIPANTS);
-  if (!participantsSheet) {
-    participantsSheet = ss.insertSheet(SHEET_PARTICIPANTS);
-    participantsSheet.appendRow(["booking_id", "idx", "first_name", "last_name", "birthdate", "street", "house_no", "zip", "city", "country"]);
+  let bo = ss.getSheetByName(SHEET_BOOKINGS);
+  if (!bo) { bo = ss.insertSheet(SHEET_BOOKINGS); }
+  if (bo.getLastRow() === 0) {
+    bo.appendRow(["booking_id", "timestamp", "slot_id", "workshop_id", "contact_email", "participants_count", "status", "cancel_token", "cancelled_at"]);
   }
   
-  // Settings Sheet
-  let settingsSheet = ss.getSheetByName(SHEET_SETTINGS);
-  if (!settingsSheet) {
-    settingsSheet = ss.insertSheet(SHEET_SETTINGS);
-    settingsSheet.appendRow(["key", "value"]);
+  let pa = ss.getSheetByName(SHEET_PARTICIPANTS);
+  if (!pa) { pa = ss.insertSheet(SHEET_PARTICIPANTS); }
+  if (pa.getLastRow() === 0) {
+    pa.appendRow(["booking_id", "idx", "first_name", "last_name", "email"]);
   }
   
-  console.log("Alle Sheets initialisiert!");
+  let se = ss.getSheetByName(SHEET_SETTINGS);
+  if (!se) { se = ss.insertSheet(SHEET_SETTINGS); }
+  if (se.getLastRow() === 0) {
+    se.appendRow(["key", "value"]);
+    se.appendRow(["ADMIN_EMAIL", "info@metzenhof.at"]);
+    se.appendRow(["MAIL_FROM_NAME", "gemma golfn"]);
+    se.appendRow(["ADMIN_KEY", "CHANGE_THIS_SECRET_KEY"]);
+    se.appendRow(["PUBLIC_BASE_URL", "https://YOUR-GITHUB-USERNAME.github.io/workshop"]);
+  }
+  
+  console.log("Sheets initialisiert.");
 }
 
 /**
- * Bestehende Bookings Sheet um neue Admin-Spalten erweitern
- * Einmalig ausführen für bestehende Sheets!
+ * Workshop-Datensatz aus gemma-golfn.at einfügen
  */
-function upgradeBookingsSheet() {
-  const sheet = getSheet(SHEET_BOOKINGS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  // Prüfen ob neue Spalten schon existieren
-  if (!headers.includes("invoice_sent")) {
-    const lastCol = sheet.getLastColumn();
-    sheet.getRange(1, lastCol + 1).setValue("invoice_sent_gmbh");
-    sheet.getRange(1, lastCol + 2).setValue("appeared");
-    sheet.getRange(1, lastCol + 3).setValue("membership_form");
-    sheet.getRange(1, lastCol + 4).setValue("dsgvo_form");
-    sheet.getRange(1, lastCol + 5).setValue("paid_date_gmbh");
-    console.log("Bookings Sheet um Admin-Spalten erweitert!");
-  } else {
-    console.log("Admin-Spalten bereits vorhanden.");
-  }
-}
-
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * UPGRADE: Bestehende Bookings Sheet um Club-Spalten erweitern
- * UND alte Spaltennamen umbenennen (invoice_sent → invoice_sent_gmbh, etc.)
- * Einmalig ausführen für bestehende Sheets!
- * WICHTIG: Bestehende Buchungen bleiben erhalten!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-/**
- * TEST-FUNKTION: Prüft ob die neue Version aktiv ist
- * Im Script-Editor ausführen und Logs prüfen!
- */
-function testFieldMap() {
-  const fieldMap = {
-    "invoice_sent_gmbh": 10,
-    "invoice_sent": 10,
-    "appeared": 11,
-    "membership_form": 12,
-    "dsgvo_form": 13,
-    "paid_date_gmbh": 14,
-    "paid_date": 14,
-    "voucher_code": 15,
-    "invoice_sent_club": 16,
-    "paid_date_club": 17
-  };
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🧪 TEST: Neue Backend-Version aktiv?");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("✓ paid_date_gmbh vorhanden:", fieldMap["paid_date_gmbh"] !== undefined);
-  console.log("✓ paid_date_club vorhanden:", fieldMap["paid_date_club"] !== undefined);
-  console.log("✓ invoice_sent_gmbh vorhanden:", fieldMap["invoice_sent_gmbh"] !== undefined);
-  console.log("✓ invoice_sent_club vorhanden:", fieldMap["invoice_sent_club"] !== undefined);
-  console.log("");
-  console.log("Spalten-Zuordnung:");
-  for (const [key, val] of Object.entries(fieldMap)) {
-    console.log(`   ${key} → Spalte ${val}`);
-  }
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("✅ Wenn du das siehst, ist die NEUE Version aktiv!");
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { success: true, message: "Neue Version aktiv!" };
-}
-
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * UPGRADE: Participants Sheet um Geburtstag-Spalte erweitern
- * Einmalig ausführen für bestehende Sheets!
- * WICHTIG: Bestehende Daten werden NICHT verändert, nur Spalte eingefügt!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * UPGRADE: Bookings Sheet um Newsletter-Spalte erweitern
- * Einmalig ausführen für bestehende Sheets!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-function upgradeBookingsWithNewsletter() {
-  const sheet = getSheet(SHEET_BOOKINGS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔄 UPGRADE: Bookings Sheet mit Newsletter-Spalte");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Aktuelle Header:", headers.join(", "));
-  
-  // Prüfen ob Newsletter-Spalte bereits existiert
-  if (headers.includes("newsletter")) {
-    console.log("✓ Newsletter-Spalte bereits vorhanden!");
-    return { success: true, message: "Spalte bereits vorhanden" };
+function seedWorkshops() {
+  const sheet = getSheet(SHEET_WORKSHOPS);
+  if (sheet.getLastRow() > 1) {
+    console.log("Workshops bereits befüllt. Überspringe.");
+    return;
   }
   
-  // Neue Spalte am Ende hinzufügen
-  const lastCol = sheet.getLastColumn();
-  sheet.getRange(1, lastCol + 1).setValue("newsletter");
-  
-  console.log(`✅ Spalte 'newsletter' an Position ${lastCol + 1} hinzugefügt!`);
-  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { success: true, message: "Newsletter-Spalte hinzugefügt" };
-}
-
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * UPGRADE: Participants Sheet um Country-Spalte erweitern
- * Einmalig ausführen für bestehende Sheets!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-function upgradeParticipantsWithCountry() {
-  const sheet = getSheet(SHEET_PARTICIPANTS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔄 UPGRADE: Participants Sheet mit Country-Spalte");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Aktuelle Header:", headers.join(", "));
-  
-  if (headers.includes("country")) {
-    console.log("✓ Country-Spalte bereits vorhanden!");
-    return { success: true, message: "Spalte bereits vorhanden" };
-  }
-  
-  const lastCol = sheet.getLastColumn();
-  sheet.getRange(1, lastCol + 1).setValue("country");
-  
-  console.log(`✅ Spalte 'country' an Position ${lastCol + 1} hinzugefügt!`);
-  return { success: true, message: "Country-Spalte hinzugefügt" };
-}
-
-/**
- * ══════════════════════════════════════════════════════════════════════════════
- * UPGRADE: Bookings Sheet um rechtliche Zustimmungs-Spalten erweitern
- * Einmalig ausführen für bestehende Sheets!
- * ══════════════════════════════════════════════════════════════════════════════
- */
-function upgradeBookingsWithLegalConsents() {
-  const sheet = getSheet(SHEET_BOOKINGS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔄 UPGRADE: Bookings Sheet mit rechtlichen Zustimmungs-Spalten");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Aktuelle Header:", headers.join(", "));
-  
-  const newColumns = [
-    "agb_kurs", "privacy_accepted", "membership_statutes", "partner_awareness",
-    "cancellation_notice", "fagg_consent", "third_party_consent", "accepted_at",
-    "terms_version", "user_agent"
+  const workshops = [
+    ["langes-spiel", "Langes Spiel (inkl. Toptracer)", "Langes Spiel & Schwungtechnik – mehr Power, mehr Präzision. Bei diesem Workshop konzentrieren wir uns auf das Verbessern deines Schwungs. Dein Eisenspiel sowie die Schläge mit Hybrids, Fairwayhölzern und dem Driver profitieren direkt von den erarbeiteten Verbesserungen! Mit Videoanalyse und individuellem Trainingsplan.", "2 Stunden", 50, 2, 4, true],
+    ["pitchen-bunker", "Pitchen/Bunker", "Pitchen & Bunkerschläge rund ums Grün. Wie bringe ich den Ball schnell zum Liegen – und wie dosiere ich meinen Schlag richtig? In diesem Workshop zeigen dir unsere Pros, wie du rund ums Grün die volle Kontrolle bekommst.", "2 Stunden", 50, 2, 4, true],
+    ["putten-chippen", "Putten/Chippen", "Putten & Chippen – das Feingefühl macht den Unterschied. In diesem Workshop lernst du von unseren Pros, wie du das kurze Spiel meisterst – mit mehr Gefühl, besserer Technik und konstanter Kontrolle auf dem Grün.", "2 Stunden", 50, 2, 4, true],
+    ["spielen-am-platz", "Spielen am Platz", "9 Loch mit dem Pro – Golftraining direkt dort, wo's zählt! Gemeinsam mit unseren Pros spielst du 9 Loch und bekommst wertvolle Tipps zu Strategie, Schlägerwahl, Technik und mentalem Spiel.", "ca. 2 Stunden", 99, 1, 4, true],
+    ["regelkunde", "Regelkunde", "Dein smarter Regelabend – zwei Stunden voller Aha-Momente! Unsere Pros erklären dir praxisnah die wichtigsten Golfregeln – einfach, verständlich und mit vielen Beispielen direkt vom Platz.", "2 Stunden", 29, 2, 4, true]
   ];
   
-  let addedCount = 0;
-  let lastCol = sheet.getLastColumn();
-  
-  newColumns.forEach(col => {
-    if (!headers.includes(col)) {
-      lastCol++;
-      sheet.getRange(1, lastCol).setValue(col);
-      console.log(`   + Spalte '${col}' hinzugefügt`);
-      addedCount++;
-    }
-  });
-  
-  if (addedCount === 0) {
-    console.log("✓ Alle Spalten bereits vorhanden!");
-  } else {
-    console.log(`\n✅ ${addedCount} neue Spalten hinzugefügt!`);
-  }
-  
-  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { success: true, added: addedCount };
+  workshops.forEach(w => sheet.appendRow(w));
+  console.log(workshops.length + " Workshops angelegt.");
 }
 
 /**
- * ══════════════════════════════════════════════════════════════════════════════
- * MASTER-UPGRADE: Führt alle Upgrade-Funktionen aus
- * Einmalig ausführen um alle Sheets zu aktualisieren!
- * ══════════════════════════════════════════════════════════════════════════════
+ * März-Termine aus dem Platzreife-Flyer (Platzreifekurse 2026 inkl. Jahresmitgliedschaft Golfpark Metzenhof.pdf)
+ * Flyer enthält u.a.: 07.03.2026, 14.03.2026, 21.03.2026, 28.03.2026
+ * Erstellt Slots für jede Workshop-Kategorie an diesen Terminen.
  */
-function upgradeAllSheets() {
-  console.log("╔═══════════════════════════════════════════════════════════╗");
-  console.log("║           MASTER-UPGRADE: Alle Sheets aktualisieren       ║");
-  console.log("╚═══════════════════════════════════════════════════════════╝\n");
+function seedSlotsFromFlyer_March() {
+  const sheet = getSheet(SHEET_SLOTS);
+  const workshopsSheet = getSheet(SHEET_WORKSHOPS);
   
-  console.log("1️⃣ Bookings: Club-Spalten...");
-  upgradeBookingsSheetWithClubColumns();
-  
-  console.log("\n2️⃣ Bookings: Newsletter-Spalte...");
-  upgradeBookingsWithNewsletter();
-  
-  console.log("\n3️⃣ Bookings: Rechtliche Zustimmungen...");
-  upgradeBookingsWithLegalConsents();
-  
-  console.log("\n4️⃣ Participants: Birthdate-Spalte...");
-  upgradeParticipantsWithBirthdate();
-  
-  console.log("\n5️⃣ Participants: Country-Spalte...");
-  upgradeParticipantsWithCountry();
-  
-  console.log("\n╔═══════════════════════════════════════════════════════════╗");
-  console.log("║           ✅ ALLE UPGRADES ABGESCHLOSSEN!                  ║");
-  console.log("╚═══════════════════════════════════════════════════════════╝");
-  
-  return { success: true, message: "Alle Sheets aktualisiert!" };
-}
-
-function upgradeParticipantsWithBirthdate() {
-  const sheet = getSheet(SHEET_PARTICIPANTS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔄 UPGRADE: Participants Sheet mit Geburtstag-Spalte");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Aktuelle Header:", headers.join(", "));
-  
-  // Prüfen ob Geburtstag-Spalte bereits existiert
-  if (headers.includes("birthdate")) {
-    console.log("✓ Geburtstag-Spalte bereits vorhanden!");
-    return { success: true, message: "Spalte bereits vorhanden" };
+  if (!workshopsSheet || workshopsSheet.getLastRow() < 2) {
+    console.log("Bitte zuerst seedWorkshops() ausführen.");
+    return;
   }
   
-  // Spalte nach "last_name" (Index 3, also Spalte D) einfügen
-  // Neue Spalte E wird eingefügt, alle danach verschieben sich
-  const lastNameIndex = headers.indexOf("last_name");
-  if (lastNameIndex === -1) {
-    console.log("❌ Spalte 'last_name' nicht gefunden!");
-    return { success: false, message: "last_name Spalte nicht gefunden" };
-  }
-  
-  // Neue Spalte nach last_name einfügen (Spalte E = Index 5)
-  const insertColumn = lastNameIndex + 2; // +1 für 1-basiert, +1 für "nach"
-  sheet.insertColumnAfter(lastNameIndex + 1);
-  
-  // Header setzen
-  sheet.getRange(1, insertColumn).setValue("birthdate");
-  
-  console.log(`✅ Spalte 'birthdate' an Position ${insertColumn} eingefügt!`);
-  console.log("Neue Header:", sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].join(", "));
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { success: true, message: "Geburtstag-Spalte hinzugefügt" };
-}
-
-function upgradeBookingsSheetWithClubColumns() {
-  const sheet = getSheet(SHEET_BOOKINGS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔄 UPGRADE: Bookings Sheet mit Club-Spalten erweitern");
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Aktuelle Header:", headers.join(", "));
-  
-  let changesCount = 0;
-  
-  // 1. Alte Spaltennamen umbenennen (falls vorhanden)
-  const renameMap = {
-    "invoice_sent": "invoice_sent_gmbh",
-    "paid_date": "paid_date_gmbh"
-  };
-  
-  for (let i = 0; i < headers.length; i++) {
-    if (renameMap[headers[i]]) {
-      const newName = renameMap[headers[i]];
-      sheet.getRange(1, i + 1).setValue(newName);
-      console.log(`   Spalte ${i + 1}: "${headers[i]}" → "${newName}"`);
-      headers[i] = newName; // Aktualisiere lokale Kopie
-      changesCount++;
+  const workshopData = workshopsSheet.getDataRange().getValues();
+  const workshopIds = [];
+  for (let i = 1; i < workshopData.length; i++) {
+    const row = workshopData[i];
+    const isActive = row[7];
+    if (isActive !== false && isActive !== "FALSE" && isActive !== "") {
+      workshopIds.push(row[0]);
     }
   }
   
-  // 2. Prüfen ob Club-Spalten bereits existieren
-  const hasInvoiceClub = headers.includes("invoice_sent_club");
-  const hasPaidClub = headers.includes("paid_date_club");
+  const marchDates = ["2026-03-07", "2026-03-14", "2026-03-21", "2026-03-28"];
+  const timeSlots = [
+    { start: "09:00", end: "11:00" },
+    { start: "11:30", end: "13:30" },
+    { start: "14:00", end: "16:00" }
+  ];
   
-  // 3. Neue Club-Spalten hinzufügen (am Ende)
-  if (!hasInvoiceClub) {
-    const lastCol = sheet.getLastColumn();
-    sheet.getRange(1, lastCol + 1).setValue("invoice_sent_club");
-    console.log(`   Neue Spalte ${lastCol + 1}: "invoice_sent_club" hinzugefügt`);
-    changesCount++;
+  let added = 0;
+  for (let wi = 0; wi < workshopIds.length; wi++) {
+    const workshopId = workshopIds[wi];
+    for (let di = 0; di < marchDates.length; di++) {
+      const dateStr = marchDates[di];
+      for (let ti = 0; ti < timeSlots.length; ti++) {
+        const ts = timeSlots[ti];
+        const slotId = workshopId + "_" + dateStr.replace(/-/g, "") + "_" + (ti + 1);
+        sheet.appendRow([slotId, workshopId, dateStr, ts.start, ts.end, MAX_PARTICIPANTS, 0, "OPEN"]);
+        added++;
+      }
+    }
   }
   
-  if (!hasPaidClub) {
-    const lastCol = sheet.getLastColumn();
-    sheet.getRange(1, lastCol + 1).setValue("paid_date_club");
-    console.log(`   Neue Spalte ${lastCol + 1}: "paid_date_club" hinzugefügt`);
-    changesCount++;
-  }
-  
-  // Ergebnis
-  const newHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  console.log("\n✅ Fertig! " + changesCount + " Änderungen vorgenommen.");
-  console.log("Neue Header:", newHeaders.join(", "));
-  console.log("\n💡 Bestehende Buchungsdaten wurden NICHT verändert!");
-  console.log("═══════════════════════════════════════════════════════════");
-  
-  return { 
-    success: true, 
-    changes: changesCount, 
-    newHeaders: newHeaders 
-  };
+  console.log(added + " Slots für März 2026 angelegt (aus Flyer-Terminen).");
 }
-

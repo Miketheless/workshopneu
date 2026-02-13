@@ -90,8 +90,9 @@
 <script>
 /**
  * Stornierung verarbeiten
+ * SCRIPT_BASE: Gleiche URL wie in app.js und admin.js eintragen!
  */
-const API_BASE = "https://script.google.com/macros/s/AKfycbzeT3syS3BN25_HR9QJ-qzHETYSTyz_Z61KxvIa8K0nr5b8XzIGr6A-FwyERn_DU3Dl_A/exec";
+const SCRIPT_BASE = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
 // DOM Elemente
 const loadingSection = document.getElementById("loading-section");
@@ -127,7 +128,7 @@ async function processCancel() {
   }
   
   try {
-    const response = await fetch(`${API_BASE}?action=cancel&token=${encodeURIComponent(token)}`);
+    const response = await fetch(`${SCRIPT_BASE}?action=cancel&token=${encodeURIComponent(token)}`);
     const result = await response.json();
     
     hideAll();

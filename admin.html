@@ -1,797 +1,65 @@
 <!DOCTYPE html>
-<!-- Platzerlaubnis Admin – Golfclub Metzenhof – v5.3 (21.01.2026) -->
+<!-- Workshop Admin – Gemma Golfn – v1.1 (Terminverwaltung) -->
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin – Golfclub Metzenhof</title>
-  <link rel="canonical" href="https://platzreife.metzenhof.at/admin.html">
+  <title>Admin – Workshop-Buchungen</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Admin-spezifische Styles */
-    .admin-container {
-      max-width: 100%;
-      padding: 1rem;
-    }
-    
-    /* Tabellen */
-    .admin-table-wrapper {
-      overflow-x: auto;
-      margin: 0 -1rem;
-      padding: 0 1rem;
-    }
-    
-    .admin-table {
-      width: 100%;
-      border-collapse: collapse;
-      border-spacing: 0;
-      font-size: 0.8rem;
-      display: table;
-    }
-    
-    .admin-table thead {
-      display: table-header-group;
-    }
-    
-    .admin-table thead tr {
-      display: table-row;
-    }
-    
-    .admin-table tbody {
-      display: table-row-group;
-    }
-    
-    .admin-table th,
-    .admin-table td {
-      display: table-cell;
-      padding: 0.5rem 0.4rem;
-      text-align: left;
-      border-bottom: 1px solid #e0e0e0;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    
-    .admin-table th {
-      background: #4a8c7b;
-      color: white;
-      font-weight: 600;
-      font-size: 0.72rem;
-      cursor: pointer;
-      user-select: none;
-      -moz-user-select: none;
-      -webkit-user-select: none;
-      white-space: nowrap;
-      vertical-align: middle;
-      text-align: center;
-      padding: 0.6rem 0.5rem;
-      min-width: 55px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    
-    .admin-table th:hover {
-      background: #3a7c6b;
-    }
-    
-    .admin-table th.no-sort {
-      cursor: default;
-    }
-    
-    .admin-table th.no-sort:hover {
-      background: #4a8c7b;
-    }
-    
-    /* Zentrierte Spalten */
-    .admin-table th.col-center,
-    .admin-table td.col-center {
-      text-align: center;
-    }
-    
-    .admin-table tbody tr:hover {
-      background: rgba(74, 140, 123, 0.05);
-    }
-    
-    .admin-table tbody tr.row-cancelled {
-      background: #fff0f0;
-    }
-    
-    .admin-table tbody tr.row-cancelled td {
-      color: #c00;
-    }
-    
-    .admin-table tbody tr.row-cancelled .name-cell {
-      text-decoration: line-through;
-    }
-    
-    /* Kombinierte Tabelle - kompakt für alle Spalten */
-    .admin-table.combined-table {
-      min-width: auto;
-      width: 100%;
-      table-layout: auto;
-    }
-    
-    .admin-table.combined-table th,
-    .admin-table.combined-table td {
-      padding: 0.3rem 0.2rem;
-      font-size: 0.7rem;
-      white-space: nowrap;
-    }
-    
-    .admin-table.combined-table th {
-      font-size: 0.65rem;
-      padding: 0.4rem 0.2rem;
-      min-width: auto;
-    }
-    
-    .admin-table.combined-table td {
-      max-width: 100px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    /* Kompaktere Spalten für bestimmte Felder */
-    .admin-table.combined-table td:nth-child(1) { max-width: 70px; } /* Termin */
-    .admin-table.combined-table td:nth-child(2) { max-width: 75px; } /* Buchung */
-    .admin-table.combined-table td:nth-child(5) { max-width: 90px; } /* Adresse */
-    .admin-table.combined-table td:nth-child(6) { max-width: 45px; } /* PLZ */
-    .admin-table.combined-table td:nth-child(7) { max-width: 70px; } /* Ort */
-    .admin-table.combined-table td:nth-child(8) { max-width: 120px; } /* E-Mail */
-    .admin-table.combined-table td:nth-child(9) { max-width: 85px; } /* Telefon */
-    .admin-table.combined-table td:nth-child(10) { max-width: 60px; } /* Gutschein */
-    
-    /* Sort Icons in Headers */
-    .admin-table th .sort-icon {
-      margin-left: 0.2rem;
-      opacity: 0.7;
-    }
-    
-    /* Checkbox als zentriertes Quadrat */
-    .admin-checkbox {
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
-      width: 18px;
-      height: 18px;
-      min-width: 18px;
-      min-height: 18px;
-      border: 2px solid #bbb;
-      border-radius: 3px;
-      background: white;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto;
-      transition: all 0.15s ease;
-    }
-    
-    .admin-checkbox:hover {
-      border-color: var(--color-primary);
-      background: #f0f8f5;
-    }
-    
-    .admin-checkbox:checked {
-      background-color: var(--color-primary);
-      border-color: var(--color-primary);
-    }
-    
-    .admin-checkbox:checked::after {
-      content: "✓";
-      color: white;
-      font-size: 14px;
-      font-weight: bold;
-      line-height: 1;
-    }
-    
-    .admin-checkbox:disabled {
-      cursor: not-allowed;
-      opacity: 0.4;
-      background: #f5f5f5;
-    }
-    
-    .admin-checkbox:disabled:checked {
-      background-color: #999;
-      border-color: #999;
-    }
-    
-    .admin-date {
-      width: 100%;
-      max-width: 95px;
-      padding: 0.2rem 0.25rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.65rem;
-      background: white;
-      cursor: pointer;
-    }
-    
-    .admin-date:hover {
-      border-color: var(--color-primary);
-    }
-    
-    .admin-date:focus {
-      outline: none;
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px rgba(74, 140, 123, 0.2);
-    }
-    
-    .admin-date:disabled {
-      background: #f5f5f5;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-    
-    /* Bezahlt-Datum wenn gesetzt */
-    .paid-date-set {
-      position: relative;
-      display: inline-block;
-      cursor: pointer;
-    }
-    
-    .paid-date-set:hover span {
-      background: #c3e6cb !important;
-    }
-    
-    /* Buttons */
-    .btn-cancel {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.7rem;
-      white-space: nowrap;
-    }
-    
-    .btn-cancel:hover { background: #c82333; }
-    
-    .btn-restore {
-      background: #28a745;
-      color: white;
-      border: none;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.7rem;
-      white-space: nowrap;
-    }
-    
-    .btn-restore:hover { background: #218838; }
-    
-    .btn-cancel:disabled,
-    .btn-restore:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    
-    /* Status Badge */
-    .status-badge {
-      display: inline-block;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.65rem;
-      font-weight: 600;
-    }
-    
+    .admin-container { max-width: 100%; padding: 1rem; }
+    .admin-table-wrapper { overflow-x: auto; }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .admin-table th, .admin-table td { padding: 0.5rem; border-bottom: 1px solid #e0e0e0; text-align: left; }
+    .admin-table th { background: #4a8c7b; color: white; font-weight: 600; }
+    .admin-table tbody tr:hover { background: rgba(74, 140, 123, 0.05); }
+    .admin-table tbody tr.row-cancelled { background: #fff0f0; color: #c00; }
+    .admin-table tbody tr.row-past { opacity: 0.6; }
+    .status-badge { padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
     .status-badge.confirmed { background: #d4edda; color: #155724; }
     .status-badge.cancelled { background: #f8d7da; color: #721c24; }
-    
-    /* Sort Icons */
-    .sort-icon { margin-left: 0.2rem; opacity: 0.5; font-size: 0.6rem; }
-    .sort-icon.active { opacity: 1; }
-    
-    /* Loading Overlay */
-    .loading-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255,255,255,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      font-size: 1.2rem;
-    }
+    .status-badge.full { background: #f8d7da; color: #721c24; }
+    .status-badge.open { background: #d4edda; color: #155724; }
+    .admin-filter { margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .admin-filter label { font-weight: 600; }
+    .admin-filter select { padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; }
+    .loading-overlay { position: fixed; top:0;left:0;right:0;bottom:0; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
     .loading-overlay.hidden { display: none; }
-    
-    /* Stats Grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-    
-    .stat-box {
-      background: #f8f6f1;
-      padding: 0.75rem;
-      border-radius: 8px;
-      text-align: center;
-    }
-    
-    .stat-box .stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--color-primary);
-    }
-    
-    .stat-box .stat-label {
-      font-size: 0.75rem;
-      color: #666;
-    }
-    
-    /* ════════════════════════════════════════════════════════════
-       MONATSKALENDER
-       ════════════════════════════════════════════════════════════ */
-    .calendar-section {
-      margin-bottom: 1.5rem;
-    }
-    
-    .calendar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    
-    .calendar-nav {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    
-    .calendar-nav button {
-      background: var(--color-primary);
-      color: white;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      font-size: 1.2rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .calendar-nav button:hover {
-      background: #3a7c6b;
-    }
-    
-    .calendar-month-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--color-primary);
-      min-width: 200px;
-      text-align: center;
-    }
-    
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-    }
-    
-    .calendar-weekday {
-      background: #f0f0f0;
-      padding: 0.5rem;
-      text-align: center;
-      font-weight: 600;
-      font-size: 0.8rem;
-      color: #666;
-    }
-    
-    .calendar-day {
-      min-height: 80px;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 0.3rem;
-      position: relative;
-      background: #fafafa;
-    }
-    
-    .calendar-day.empty {
-      background: transparent;
-      border-color: transparent;
-    }
-    
-    .calendar-day .day-number {
-      font-size: 0.8rem;
-      color: #999;
-      margin-bottom: 0.3rem;
-    }
-    
-    .calendar-day.today {
-      border-color: var(--color-primary);
-      border-width: 2px;
-    }
-    
-    .calendar-day.today .day-number {
-      color: var(--color-primary);
-      font-weight: 700;
-    }
-    
-    /* Termin-Slot im Kalender */
-    .calendar-slot {
-      background: #28a745;
-      color: white;
-      padding: 0.3rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      cursor: pointer;
-      margin-top: 0.2rem;
-      transition: transform 0.1s, box-shadow 0.1s;
-    }
-    
-    .calendar-slot:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    
-    .calendar-slot.full {
-      background: #dc3545;
-      cursor: not-allowed;
-    }
-    
-    .calendar-slot.low {
-      background: #fd7e14;
-    }
-    
-    .calendar-slot .slot-time {
-      font-weight: 600;
-    }
-    
-    .calendar-slot .slot-info {
-      font-size: 0.65rem;
-      opacity: 0.9;
-    }
-    
-    /* Quick-Book Modal */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    
-    .modal-overlay.hidden { display: none; }
-    
-    .modal-content {
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      max-width: 500px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-    
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #eee;
-    }
-    
-    .modal-header h3 {
-      margin: 0;
-      color: var(--color-primary);
-    }
-    
-    .modal-close {
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      color: #999;
-      padding: 0;
-      line-height: 1;
-    }
-    
-    .modal-close:hover { color: #333; }
-    
-    /* Teilnehmerliste im Modal */
-    .modal-participant-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .modal-participant-item:last-child {
-      border-bottom: none;
-    }
-    
-    .modal-participant-name {
-      font-weight: 600;
-    }
-    
-    .modal-participant-booking {
-      font-size: 0.75rem;
-      color: #666;
-    }
-    
-    .modal-participant-status {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-    }
-    
-    .modal-participant-status.confirmed {
-      background: #d4edda;
-      color: #155724;
-    }
-    
-    .modal-participant-status.cancelled {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    
-    .modal-form label {
-      display: block;
-      margin-bottom: 0.3rem;
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-    
-    .modal-form input {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-bottom: 0.75rem;
-      font-size: 0.9rem;
-    }
-    
-    .modal-form .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-    
-    .modal-info {
-      background: #f0f8f0;
-      padding: 0.75rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      font-size: 0.85rem;
-    }
-    
-    .modal-info strong {
-      color: var(--color-primary);
-    }
-    
-    /* Tabs */
-    .admin-tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      border-bottom: 2px solid #e0e0e0;
-      padding-bottom: 0.5rem;
-    }
-    
-    .admin-tab {
-      padding: 0.5rem 1rem;
-      background: #f0f0f0;
-      border: none;
-      border-radius: 4px 4px 0 0;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #666;
-    }
-    
-    .admin-tab:hover {
-      background: #e0e0e0;
-    }
-    
-    .admin-tab.active {
-      background: var(--color-primary);
-      color: white;
-    }
-    
-    .tab-content {
-      display: none;
-    }
-    
-    .tab-content.active {
-      display: block;
-    }
-    
-    /* Neue Buchung Formular */
-    .add-booking-form label {
-      display: block;
-      margin-bottom: 0.3rem;
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-    
-    .add-booking-form input,
-    .add-booking-form select {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .participant-entry {
-      background: #f8f9fa;
-      padding: 0.75rem;
-      border-radius: 8px;
-      margin-bottom: 0.5rem;
-    }
-    
-    .participant-entry .form-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 0.5rem;
-    }
-    
-    .btn-remove-participant {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.75rem;
-    }
-    
-    /* Responsive */
-    @media (max-width: 1400px) {
-      .admin-table.combined-table th,
-      .admin-table.combined-table td {
-        padding: 0.25rem 0.15rem;
-        font-size: 0.65rem;
-      }
-      .admin-table.combined-table th {
-        font-size: 0.6rem;
-      }
-      .admin-date {
-        max-width: 85px;
-        font-size: 0.6rem;
-        padding: 0.15rem 0.2rem;
-      }
-      .admin-checkbox {
-        width: 16px;
-        height: 16px;
-        min-width: 16px;
-        min-height: 16px;
-      }
-    }
-    
-    @media (max-width: 768px) {
-      .admin-table { min-width: 900px; font-size: 0.7rem; }
-      .calendar-grid { grid-template-columns: repeat(7, 1fr); }
-      .calendar-day { min-height: 60px; }
-      .calendar-slot { font-size: 0.6rem; padding: 0.2rem; }
-      .modal-form .form-row { grid-template-columns: 1fr; }
-    }
+    .admin-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid #e0e0e0; }
+    .admin-tab { padding: 0.5rem 1rem; background: #f0f0f0; border: none; border-radius: 4px 4px 0 0; cursor: pointer; font-weight: 600; }
+    .admin-tab:hover { background: #e0e0e0; }
+    .admin-tab.active { background: #4a8c7b; color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .add-slot-form { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; max-width: 500px; }
+    .add-slot-form label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    .add-slot-form input, .add-slot-form select { width: 100%; padding: 0.5rem; margin-bottom: 0.75rem; border: 1px solid #ccc; border-radius: 4px; }
+    .add-slot-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   </style>
 </head>
 <body>
 
 <header class="hero" style="padding: 1rem 0;">
   <div class="hero-inner">
-    <h1 style="font-size: 1.5rem;">Admin-Bereich</h1>
-    <p class="hero-subtitle" style="font-size: 0.9rem;">Buchungsverwaltung Platzerlaubnis-Kurse</p>
+    <h1 style="font-size: 1.5rem;">Admin – Workshop-Buchungen</h1>
+    <p class="hero-subtitle" style="font-size: 0.9rem;">Gemma Golfn</p>
   </div>
 </header>
 
-<!-- Loading Overlay -->
-<div id="loading-overlay" class="loading-overlay hidden">⏳ Wird aktualisiert...</div>
-
-<!-- Quick-Book Modal -->
-<div id="quick-book-modal" class="modal-overlay hidden">
-  <div class="modal-content" style="max-width: 600px;">
-    <div class="modal-header">
-      <h3>📅 Termin-Details & Schnellbuchung</h3>
-      <button type="button" class="modal-close" id="modal-close">×</button>
-    </div>
-    <div class="modal-info" id="modal-slot-info">
-      <strong>Termin:</strong> <span id="modal-slot-date">–</span><br>
-      <strong>Freie Plätze:</strong> <span id="modal-slot-free">–</span>
-    </div>
-    
-    <!-- Bestehende Teilnehmer -->
-    <div id="modal-participants-section" style="margin-bottom: 1rem;">
-      <h4 style="margin: 0 0 0.5rem 0; color: var(--color-primary);">👥 Gebuchte Teilnehmer</h4>
-      <div id="modal-participants-list" style="background: #f8f9fa; border-radius: 8px; padding: 0.75rem; font-size: 0.85rem; max-height: 150px; overflow-y: auto;">
-        <p style="color: #999; margin: 0;">Keine Buchungen für diesen Termin.</p>
-      </div>
-    </div>
-    
-    <h4 style="margin: 0 0 0.5rem 0; color: var(--color-primary);">➕ Neuen Teilnehmer hinzufügen</h4>
-    <form class="modal-form" id="quick-book-form">
-      <input type="hidden" id="modal-slot-id">
-      <div class="form-row">
-        <div>
-          <label>Vorname *</label>
-          <input type="text" id="modal-first-name" required>
-        </div>
-        <div>
-          <label>Nachname *</label>
-          <input type="text" id="modal-last-name" required>
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>Geburtstag <small style="color:#999;">(optional)</small></label>
-          <input type="date" id="modal-birthdate" placeholder="optional">
-        </div>
-        <div>
-          <label>Telefon <small style="color:#999;">(optional)</small></label>
-          <input type="tel" id="modal-phone" placeholder="optional">
-        </div>
-      </div>
-      <div class="form-row">
-        <div style="grid-column: 1 / -1;">
-          <label>E-Mail <small style="color:#999;">(optional)</small></label>
-          <input type="email" id="modal-email" placeholder="optional">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>Straße <small style="color:#999;">(optional)</small></label>
-          <input type="text" id="modal-street" placeholder="optional">
-        </div>
-        <div>
-          <label>Hausnr.</label>
-          <input type="text" id="modal-house-no" placeholder="optional">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>PLZ</label>
-          <input type="text" id="modal-zip" placeholder="optional">
-        </div>
-        <div>
-          <label>Ort</label>
-          <input type="text" id="modal-city" placeholder="optional">
-        </div>
-      </div>
-      <div class="form-row">
-        <div style="grid-column: 1 / -1;">
-          <label>🎟️ Gutscheincode <small style="color:#999;">(optional)</small></label>
-          <input type="text" id="modal-voucher-code" placeholder="z.B. GOLF2026" style="text-transform: uppercase;">
-        </div>
-      </div>
-      <div id="modal-message" class="message" style="margin-bottom: 0.5rem;"></div>
-      <button type="submit" style="width: 100%;">✓ Teilnehmer hinzufügen</button>
-    </form>
-  </div>
-</div>
+<div id="loading-overlay" class="loading-overlay hidden">⏳ Wird geladen...</div>
 
 <main class="admin-container">
   
-  <!-- LOGIN -->
   <section id="login-section" class="card" style="max-width: 400px; margin: 2rem auto;">
     <div class="card-header"><h2>Anmeldung</h2></div>
-    <label for="admin-key">
-      Admin-Schlüssel
-      <input type="password" id="admin-key" placeholder="Schlüssel eingeben">
-    </label>
+    <label for="admin-key">Admin-Schlüssel</label>
+    <input type="password" id="admin-key" placeholder="Schlüssel eingeben">
     <button type="button" id="login-btn">Anmelden</button>
     <div id="login-message" class="message"></div>
   </section>
   
-  <!-- ADMIN PANEL -->
   <section id="admin-panel" class="hidden">
-    
-    <!-- Aktionen -->
     <div class="card" style="padding: 0.75rem; margin-bottom: 1rem;">
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <button type="button" id="refresh-btn">🔄 Aktualisieren</button>
@@ -799,77 +67,73 @@
       </div>
     </div>
     
-    <!-- Statistiken -->
-    <div class="stats-grid">
-      <div class="stat-box">
-        <div class="stat-value" id="stat-total">–</div>
-        <div class="stat-label">Buchungen</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-confirmed">–</div>
-        <div class="stat-label">Bestätigt</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-cancelled">–</div>
-        <div class="stat-label">Storniert</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-participants">–</div>
-        <div class="stat-label">Teilnehmer</div>
-      </div>
-    </div>
-    
-    <!-- Tabs -->
     <div class="admin-tabs">
-      <button class="admin-tab active" data-tab="calendar">📅 Kalender</button>
-      <button class="admin-tab" data-tab="combined">📋 Buchungen & Teilnehmer</button>
+      <button class="admin-tab active" data-tab="bookings">📋 Buchungen</button>
+      <button class="admin-tab" data-tab="slots">📅 Termine</button>
     </div>
     
-    <!-- Tab: Kalender -->
-    <div id="tab-calendar" class="tab-content active">
-      <div class="card calendar-section" style="padding: 1rem;">
-        <div class="calendar-header">
-          <div class="calendar-nav">
-            <button type="button" id="prev-month">◀</button>
-            <span class="calendar-month-title" id="calendar-title">Januar 2026</span>
-            <button type="button" id="next-month">▶</button>
-          </div>
-          <div style="font-size: 0.8rem; color: #666;">
-            <span style="display: inline-block; width: 12px; height: 12px; background: #28a745; border-radius: 2px;"></span> Verfügbar
-            <span style="display: inline-block; width: 12px; height: 12px; background: #fd7e14; border-radius: 2px; margin-left: 0.5rem;"></span> Fast voll
-            <span style="display: inline-block; width: 12px; height: 12px; background: #dc3545; border-radius: 2px; margin-left: 0.5rem;"></span> Voll
-          </div>
-        </div>
-        <div class="calendar-grid" id="calendar-grid">
-          <!-- Kalender wird dynamisch generiert -->
-        </div>
+    <!-- Tab: Buchungen -->
+    <div id="tab-bookings" class="tab-content active">
+      <div class="admin-filter">
+        <label for="filter-workshop">Filter Workshop:</label>
+        <select id="filter-workshop">
+          <option value="">– Alle –</option>
+        </select>
       </div>
-    </div>
-    
-    <!-- Tab: Buchungen & Teilnehmer (kombiniert) -->
-    <div id="tab-combined" class="tab-content">
       <div class="card" style="padding: 1rem;">
-        <h3 style="margin: 0 0 0.5rem 0;">📋 Alle Buchungen & Teilnehmer</h3>
-        <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.5rem;">
-          Jede Zeile = ein Teilnehmer. Klicke auf Spalten zum Sortieren. Änderungen werden sofort gespeichert.
-        </p>
-        <div id="combined-container" class="admin-table-wrapper">
+        <h3>📋 Buchungen</h3>
+        <div id="bookings-container" class="admin-table-wrapper">
           <p class="text-muted">Daten werden geladen...</p>
         </div>
       </div>
     </div>
     
+    <!-- Tab: Termine -->
+    <div id="tab-slots" class="tab-content">
+      <div class="card" style="padding: 1rem;">
+        <h3>➕ Neuen Termin anlegen</h3>
+        <form id="add-slot-form" class="add-slot-form">
+          <label for="add-workshop">Workshop *</label>
+          <select id="add-workshop" required>
+            <option value="">– Workshop wählen –</option>
+          </select>
+          <label for="add-date">Datum (YYYY-MM-DD) *</label>
+          <input type="date" id="add-date" required>
+          <div class="form-row">
+            <div>
+              <label for="add-start">Start</label>
+              <input type="text" id="add-start" value="10:00" placeholder="10:00">
+            </div>
+            <div>
+              <label for="add-end">Ende</label>
+              <input type="text" id="add-end" value="12:00" placeholder="12:00">
+            </div>
+          </div>
+          <button type="submit">✓ Termin hinzufügen</button>
+          <div id="add-slot-message" class="message" style="margin-top: 0.5rem;"></div>
+        </form>
+        
+        <h3 style="margin-top: 1.5rem;">📅 Alle Termine</h3>
+        <div class="admin-filter">
+          <label for="filter-slots-workshop">Filter Workshop:</label>
+          <select id="filter-slots-workshop">
+            <option value="">– Alle –</option>
+          </select>
+        </div>
+        <div id="slots-container" class="admin-table-wrapper">
+          <p class="text-muted">Termine werden geladen...</p>
+        </div>
+      </div>
+    </div>
   </section>
   
 </main>
 
 <footer class="footer-simple" style="margin-top: 2rem; padding: 1rem;">
   <p><a href="index.html" style="color: rgba(255,255,255,0.9);">← Zur Buchungsseite</a></p>
-  <p style="margin-top: 0.5rem; opacity: 0.6; font-size: 0.75rem;">© 2026 Golfclub Metzenhof – Admin v5.3</p>
+  <p style="margin-top: 0.5rem; opacity: 0.6; font-size: 0.75rem;">© 2026 Gemma Golfn</p>
 </footer>
 
 <script src="admin.js"></script>
 </body>
 </html>
-
-
