@@ -142,6 +142,7 @@ function doGet(e) {
   
   switch (action) {
     case "workshops": return handleGetWorkshops();
+    case "workshops_with_slots": return handleGetWorkshopsWithSlots();
     case "slots": return handleGetSlots(e.parameter.workshop_id);
     case "book": return handleBookViaGet(e.parameter.data);
     case "cancel": return handleCancel(e.parameter.token);
@@ -194,6 +195,64 @@ function handleGetWorkshops() {
     });
   }
   return jsonResponse({ ok: true, workshops });
+}
+
+/**
+ * Workshops + Slots in einem Aufruf (schneller als workshops + N×slots)
+ */
+function handleGetWorkshopsWithSlots() {
+  const wsSheet = getSheet(SHEET_WORKSHOPS);
+  const workshops = [];
+  if (wsSheet && wsSheet.getLastRow() > 1) {
+    const wData = wsSheet.getDataRange().getValues();
+    for (let i = 1; i < wData.length; i++) {
+      const row = wData[i];
+      if (row[7] === false || row[7] === "FALSE") continue;
+      workshops.push({
+        workshop_id: row[0],
+        title: row[1],
+        description: row[2],
+        duration_text: row[3],
+        price_eur: parseInt(row[4]) || 50,
+        min_participants: parseInt(row[5]) || 2,
+        max_participants: parseInt(row[6]) || MAX_PARTICIPANTS,
+        is_active: true
+      });
+    }
+  }
+  const slotsSheet = getSheet(SHEET_SLOTS);
+  const slotsByWorkshop = {};
+  workshops.forEach(w => { slotsByWorkshop[w.workshop_id] = []; });
+  if (slotsSheet && slotsSheet.getLastRow() > 1) {
+    const sData = slotsSheet.getDataRange().getValues();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 1; i < sData.length; i++) {
+      const row = sData[i];
+      const wid = String(row[1]);
+      if (!slotsByWorkshop[wid]) continue;
+      const dateId = extractSlotDateId(row[2]);
+      if (!dateId) continue;
+      const slotDate = new Date(dateId);
+      if (slotDate < today) continue;
+      slotsByWorkshop[wid].push({
+        slot_id: row[0],
+        workshop_id: row[1],
+        date: dateId,
+        start: formatTimeForSlot(row[3]) || "10:00",
+        end: formatTimeForSlot(row[4]) || "12:00",
+        capacity: parseInt(row[5]) || MAX_PARTICIPANTS,
+        booked: parseInt(row[6]) || 0,
+        free: Math.max(0, (parseInt(row[5]) || MAX_PARTICIPANTS) - (parseInt(row[6]) || 0)),
+        status: ((parseInt(row[5]) || MAX_PARTICIPANTS) - (parseInt(row[6]) || 0)) <= 0 ? "FULL" : (row[7] || "OPEN")
+      });
+    }
+  }
+  const workshops_with_slots = workshops.map(w => ({
+    workshop: w,
+    slots: slotsByWorkshop[w.workshop_id] || []
+  }));
+  return jsonResponse({ ok: true, workshops, workshops_with_slots });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

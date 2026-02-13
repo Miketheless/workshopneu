@@ -2711,7 +2711,8 @@ a:focus-visible {
 }
 .workshop-block h3 { margin: 0 0 0.5rem 0; font-size: 1.4rem; font-weight: 600; color: var(--color-text); letter-spacing: 0.02em; }
 .workshop-block .workshop-desc { font-size: 1.05rem; line-height: 1.6; color: var(--color-text-light); margin: 0.5rem 0 1rem 0; }
-.workshop-block .workshop-meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--color-primary); font-weight: 600; margin-bottom: 1rem; }
+.workshop-block .workshop-meta { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 1.05rem; color: var(--color-primary); font-weight: 700; margin-bottom: 1rem; letter-spacing: 0.02em; }
+.workshop-block .workshop-meta span { padding: 0.25rem 0.5rem; background: var(--color-primary-faded); border-radius: 6px; }
 .workshop-block .workshop-slots-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text); }
 
 /* Buchungsformular: Teilnehmeranzahl, Kontakt-E-Mail */

@@ -59,17 +59,18 @@ function formatDateShort(str) {
   return `${String(p.day).padStart(2, "0")}.${String(p.month).padStart(2, "0")}.${p.year}`;
 }
 
-/** Datum aus slot_id oder date extrahieren (slot_id z.B. "langes-spiel_20260307_1") */
 /** Zeitwert (ISO-String oder "HH:MM") zu "HH:MM" formatieren */
 function formatTimeDisplay(val) {
   if (!val) return "–";
   const s = String(val).trim();
-  const m = s.match(/T(\d{1,2}):(\d{2})/);
-  if (m) return m[1].padStart(2, "0") + ":" + m[2];
+  const isoMatch = s.match(/T(\d{1,2}):(\d{2})/);
+  if (isoMatch) return isoMatch[1].padStart(2, "0") + ":" + isoMatch[2];
   if (/^\d{1,2}:\d{2}$/.test(s)) return s;
-  return s;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return "–";
+  return "–";
 }
 
+/** Datum aus slot_id oder date extrahieren (slot_id z.B. "langes-spiel_20260307_1") */
 function getDateFromSlot(slot) {
   let str = (slot.date || slot.slot_id || "").toString().trim();
   if (str.includes("T")) str = str.split("T")[0];
@@ -124,6 +125,18 @@ async function fetchSlots(workshopId) {
     return data.ok ? (data.slots || []) : [];
   } catch (e) {
     console.warn("Slots API:", e.message);
+    return [];
+  }
+}
+
+/** Workshops + Slots in einem Aufruf (schneller) */
+async function fetchWorkshopsWithSlots() {
+  try {
+    const res = await fetch(`${CONFIG.SCRIPT_BASE}?action=workshops_with_slots`);
+    const data = await res.json();
+    return data.ok ? (data.workshops_with_slots || []) : [];
+  } catch (e) {
+    console.warn("WorkshopsWithSlots API:", e.message);
     return [];
   }
 }
@@ -246,15 +259,15 @@ async function loadAllWorkshopsAndSlots() {
     container.innerHTML = '<div class="termine-loading"><div class="loading-spinner"></div><span>Termine werden geladen...</span></div>';
   }
 
-  const workshops = await fetchWorkshops();
-  workshopsWithSlots = [];
-
-  for (let i = 0; i < workshops.length; i++) {
-    const w = workshops[i];
-    if (w.is_active === false) continue;
-    const slots = await fetchSlots(w.workshop_id);
-    workshopsWithSlots.push({ workshop: w, slots });
+  let data = await fetchWorkshopsWithSlots();
+  if (!Array.isArray(data) || data.length === 0) {
+    const workshops = await fetchWorkshops();
+    const active = (workshops || []).filter(w => w.is_active !== false);
+    const slotPromises = active.map(w => fetchSlots(w.workshop_id));
+    const slotsArrays = await Promise.all(slotPromises);
+    data = active.map((w, i) => ({ workshop: w, slots: slotsArrays[i] || [] }));
   }
+  workshopsWithSlots = data;
 
   renderFilterDropdown();
   renderAllWorkshops();
