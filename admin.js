@@ -224,6 +224,7 @@ function renderBookings() {
     const participantsStr = (b.participants || [])
       .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")")
       .join("; ");
+    const voucherInfo = b.voucher_code ? " [Gutschein: " + (b.voucher_code || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "]" : "";
     const bid = (b.booking_id || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const rngChecked = b.rng ? " checked" : "";
     const erschienenChecked = b.erschienen ? " checked" : "";
@@ -244,7 +245,7 @@ function renderBookings() {
         <td><input type="checkbox" class="admin-rng" data-booking-id="${bid}"${rngChecked}></td>
         <td><input type="date" class="admin-rng-bezahlt" data-booking-id="${bid}" value="${rngBezahltVal}"></td>
         <td><input type="checkbox" class="admin-erschienen" data-booking-id="${bid}"${erschienenChecked}></td>
-        <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${participantsStr}">${participantsStr || "–"}</td>
+        <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${participantsStr}${voucherInfo}">${participantsStr || "–"}${voucherInfo}</td>
         <td>${cancelled ? "–" : `<button type="button" class="admin-cancel-btn" data-booking-id="${bid}" title="Buchung stornieren">Storno</button>`}</td>
       </tr>
     `;
