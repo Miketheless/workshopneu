@@ -243,7 +243,7 @@ function renderBookings() {
         <td><input type="date" class="admin-rng-bezahlt" data-booking-id="${bid}" value="${rngBezahltVal}"></td>
         <td><input type="checkbox" class="admin-erschienen" data-booking-id="${bid}"${erschienenChecked}></td>
         <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${participantsStr}">${participantsStr || "–"}</td>
-        <td>${cancelled ? "–" : `<button type="button" class="admin-cancel-btn" data-booking-id="${bid}">Stornieren</button>`}</td>
+        <td>${cancelled ? "–" : `<button type="button" class="admin-cancel-btn" data-booking-id="${bid}" title="Buchung stornieren">Storno</button>`}</td>
       </tr>
     `;
   });
@@ -278,12 +278,12 @@ async function handleAdminCancelClick(e) {
     } else {
       alert("Storno fehlgeschlagen: " + (data.message || "Unbekannt"));
       btn.disabled = false;
-      btn.textContent = "Stornieren";
+      btn.textContent = "Storno";
     }
   } catch (err) {
     alert("Fehler: " + err.message);
     btn.disabled = false;
-    btn.textContent = "Stornieren";
+    btn.textContent = "Storno";
   }
 }
 
@@ -449,7 +449,7 @@ function renderSlotsTable() {
         <td>${formatTimeDisplay(s.start)}–${formatTimeDisplay(s.end)} Uhr</td>
         <td>${s.booked || 0} / ${s.capacity || 4}</td>
         <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-        <td>${!isCancelled && !past ? `<button type="button" class="admin-cancel-btn slot-cancel-btn" data-slot-id="${s.slot_id}" data-workshop-id="${s.workshop_id}">Stornieren</button>` : "–"}</td>
+        <td>${!isCancelled && !past ? `<button type="button" class="admin-cancel-btn slot-cancel-btn" data-slot-id="${s.slot_id}" data-workshop-id="${s.workshop_id}" title="Termin stornieren">Storno</button>` : "–"}</td>
       </tr>
     `;
   });
@@ -478,12 +478,12 @@ async function handleSlotCancelClick(e) {
     } else {
       alert("Storno fehlgeschlagen: " + (data.message || "Unbekannt"));
       btn.disabled = false;
-      btn.textContent = "Stornieren";
+      btn.textContent = "Storno";
     }
   } catch (err) {
     alert("Fehler: " + err.message);
     btn.disabled = false;
-    btn.textContent = "Stornieren";
+    btn.textContent = "Storno";
   }
 }
 
