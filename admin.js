@@ -203,13 +203,13 @@ function renderBookings() {
           <th>Vorname</th>
           <th>Nachname</th>
           <th>E-Mail</th>
+          <th>Telefon</th>
           <th>Gutschein</th>
           <th>TN</th>
           <th>Status</th>
           <th>RNG</th>
           <th>RNG Bezahlt</th>
           <th>Erschienen</th>
-          <th>Teilnehmer</th>
           <th>Aktion</th>
         </tr>
       </thead>
@@ -221,10 +221,7 @@ function renderBookings() {
     const p0 = (b.participants || [])[0];
     const vorname = p0 ? (p0.first_name || "") : "";
     const nachname = p0 ? (p0.last_name || "") : "";
-    const participantsStr = (b.participants || [])
-      .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")")
-      .join("; ");
-    const voucherInfo = b.voucher_code ? " [Gutschein: " + (b.voucher_code || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "]" : "";
+    const telefon = p0 ? (p0.phone || "") : "";
     const bid = (b.booking_id || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const rngChecked = b.rng ? " checked" : "";
     const erschienenChecked = b.erschienen ? " checked" : "";
@@ -239,13 +236,13 @@ function renderBookings() {
         <td>${vorname || "–"}</td>
         <td>${nachname || "–"}</td>
         <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
+        <td>${telefon || "–"}</td>
         <td>${b.voucher_code || "–"}</td>
         <td>${b.participants_count || 0}</td>
         <td><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "Storno" : "OK"}</span></td>
         <td><input type="checkbox" class="admin-rng" data-booking-id="${bid}"${rngChecked}></td>
         <td><input type="date" class="admin-rng-bezahlt" data-booking-id="${bid}" value="${rngBezahltVal}"></td>
         <td><input type="checkbox" class="admin-erschienen" data-booking-id="${bid}"${erschienenChecked}></td>
-        <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${participantsStr}${voucherInfo}">${participantsStr || "–"}${voucherInfo}</td>
         <td>${cancelled ? "–" : `<button type="button" class="admin-cancel-btn" data-booking-id="${bid}" title="Buchung stornieren">Storno</button>`}</td>
       </tr>
     `;
@@ -255,7 +252,6 @@ function renderBookings() {
   html += "<p style='font-size:0.75rem; color:#666; margin-top:0.5rem;'>Buchungen: " + filtered.length + "</p>";
   
   container.innerHTML = html;
-  container.onchange = handleBookingFieldChange;
   container.onclick = (e) => {
     if (e.target.classList.contains("admin-cancel-btn")) handleAdminCancelClick(e);
   };
@@ -597,3 +593,12 @@ $("admin-key").addEventListener("keypress", e => { if (e.key === "Enter") handle
 $("refresh-btn").addEventListener("click", handleRefresh);
 $("export-btn").addEventListener("click", handleExport);
 $("add-slot-form").addEventListener("submit", handleAddSlot);
+
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  const container = $("bookings-container");
+  if (!container || !container.contains(el)) return;
+  if (el.classList.contains("admin-rng") || el.classList.contains("admin-rng-bezahlt") || el.classList.contains("admin-erschienen")) {
+    handleBookingFieldChange(e);
+  }
+});

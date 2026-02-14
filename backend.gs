@@ -414,6 +414,7 @@ function handleBook(payload) {
     
     const bookingsSheet = getSheet(SHEET_BOOKINGS);
     ensureBookingsColumns(bookingsSheet);
+    const voucherCode = (payload.voucher_code != null && payload.voucher_code !== "") ? String(payload.voucher_code).trim() : "";
     bookingsSheet.appendRow([
       bookingId,
       timestamp,
@@ -426,9 +427,10 @@ function handleBook(payload) {
       "",
       false,
       "",
-      false,
-      (payload.voucher_code || "").toString().trim()
+      false
     ]);
+    const lastRow = bookingsSheet.getLastRow();
+    bookingsSheet.getRange(lastRow, 13).setValue(voucherCode);
     
     const participantsSheet = getSheet(SHEET_PARTICIPANTS);
     payload.participants.forEach((p, idx) => {
