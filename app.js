@@ -156,8 +156,13 @@ function renderFilterDropdown() {
   const sel = document.getElementById("workshop-filter");
   if (!sel) return;
 
+  const withSlots = workshopsWithSlots.filter(item => {
+    const futureSlots = (item.slots || []).filter(s => isFuture(getDateFromSlot(s)));
+    return futureSlots.length > 0;
+  });
+
   sel.innerHTML = '<option value="">Alle Workshops</option>';
-  workshopsWithSlots.forEach(w => {
+  withSlots.forEach(w => {
     const opt = document.createElement("option");
     opt.value = w.workshop.workshop_id;
     opt.textContent = w.workshop.title;
@@ -212,19 +217,24 @@ function renderAllWorkshops() {
   if (!container) return;
 
   let html = "";
-  const toShow = filterValue
+  let toShow = filterValue
     ? workshopsWithSlots.filter(w => w.workshop.workshop_id === filterValue)
     : workshopsWithSlots;
 
+  toShow = toShow.filter(item => {
+    const futureSlots = (item.slots || []).filter(s => isFuture(getDateFromSlot(s)));
+    return futureSlots.length > 0;
+  });
+
   if (toShow.length === 0) {
-    html = '<div class="termine-empty termine-loading"><span>Keine Termine verfügbar.</span></div>';
+    html = '<div class="termine-empty termine-loading"><span>Derzeit keine Termine verfügbar.</span></div>';
   } else {
     toShow.forEach(item => {
       const w = item.workshop;
-  const futureSlots = (item.slots || []).filter(s => isFuture(getDateFromSlot(s)));
-  futureSlots.sort((a, b) => {
-    const da = parseDate(getDateFromSlot(a));
-    const db = parseDate(getDateFromSlot(b));
+      const futureSlots = (item.slots || []).filter(s => isFuture(getDateFromSlot(s)));
+      futureSlots.sort((a, b) => {
+        const da = parseDate(getDateFromSlot(a));
+        const db = parseDate(getDateFromSlot(b));
         if (!da || !db) return 0;
         return new Date(da.year, da.month - 1, da.day) - new Date(db.year, db.month - 1, db.day);
       });
@@ -240,10 +250,7 @@ function renderAllWorkshops() {
           </div>
           <div class="workshop-slots-title">Verfügbare Termine:</div>
           <div class="termine-grid">
-            ${futureSlots.length > 0
-              ? futureSlots.map(s => renderSlotCard(s, w)).join("")
-              : '<p class="termine-empty" style="grid-column:1/-1;color:var(--color-text-muted);">Keine zukünftigen Termine.</p>'
-            }
+            ${futureSlots.map(s => renderSlotCard(s, w)).join("")}
           </div>
         </div>
       `;
