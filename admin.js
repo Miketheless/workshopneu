@@ -192,7 +192,11 @@ function renderBookings() {
           <th>E-Mail</th>
           <th>TN</th>
           <th>Status</th>
+          <th>RNG</th>
+          <th>RNG Bezahlt</th>
+          <th>Erschienen</th>
           <th>Teilnehmer</th>
+          <th>Aktion</th>
         </tr>
       </thead>
       <tbody>
@@ -203,9 +207,13 @@ function renderBookings() {
     const participantsStr = (b.participants || [])
       .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")")
       .join("; ");
+    const bid = (b.booking_id || "").replace(/'/g, "&#39;");
+    const rngChecked = b.rng ? " checked" : "";
+    const erschienenChecked = b.erschienen ? " checked" : "";
+    const rngBezahltVal = b.rng_bezahlt || "";
     
     html += `
-      <tr class="${cancelled ? "row-cancelled" : ""}">
+      <tr class="${cancelled ? "row-cancelled" : ""}" data-booking-id="${bid}">
         <td><strong>${b.booking_id}</strong></td>
         <td>${formatTimestamp(b.timestamp)}</td>
         <td>${formatSlotDisplay(b.slot_id, b.slot_date)}</td>
@@ -213,7 +221,11 @@ function renderBookings() {
         <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
         <td>${b.participants_count || 0}</td>
         <td><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "Storno" : "OK"}</span></td>
+        <td><input type="checkbox" class="admin-rng" data-booking-id="${bid}"${rngChecked}></td>
+        <td><input type="date" class="admin-rng-bezahlt" data-booking-id="${bid}" value="${rngBezahltVal}"></td>
+        <td><input type="checkbox" class="admin-erschienen" data-booking-id="${bid}"${erschienenChecked}></td>
         <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${participantsStr}">${participantsStr || "–"}</td>
+        <td>${cancelled ? "–" : `<button type="button" class="admin-cancel-btn" data-booking-id="${bid}">Stornieren</button>`}</td>
       </tr>
     `;
   });
@@ -222,6 +234,72 @@ function renderBookings() {
   html += "<p style='font-size:0.75rem; color:#666; margin-top:0.5rem;'>Buchungen: " + filtered.length + "</p>";
   
   container.innerHTML = html;
+  container.querySelectorAll(".admin-rng, .admin-rng-bezahlt, .admin-erschienen").forEach(el => {
+    el.addEventListener("change", handleBookingFieldChange);
+  });
+  container.querySelectorAll(".admin-cancel-btn").forEach(btn => {
+    btn.addEventListener("click", handleAdminCancelClick);
+  });
+}
+
+async function handleAdminCancelClick(e) {
+  const btn = e.target;
+  const bookingId = btn.dataset.bookingId;
+  if (!bookingId || !currentAdminKey) return;
+  if (!confirm("Buchung " + bookingId + " wirklich stornieren? Der Slot wird wieder freigegeben.")) return;
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const params = new URLSearchParams({
+      action: "admin_cancel_booking",
+      admin_key: currentAdminKey,
+      booking_id: bookingId
+    });
+    const res = await fetch(SCRIPT_BASE + "?" + params.toString());
+    const data = await res.json();
+    if (data.ok) {
+      await handleRefresh();
+    } else {
+      alert("Storno fehlgeschlagen: " + (data.message || "Unbekannt"));
+      btn.disabled = false;
+      btn.textContent = "Stornieren";
+    }
+  } catch (err) {
+    alert("Fehler: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Stornieren";
+  }
+}
+
+async function handleBookingFieldChange(e) {
+  const el = e.target;
+  const bookingId = el.dataset.bookingId;
+  if (!bookingId || !currentAdminKey) return;
+  let field, value;
+  if (el.classList.contains("admin-rng")) {
+    field = "rng";
+    value = el.checked;
+  } else if (el.classList.contains("admin-rng-bezahlt")) {
+    field = "rng_bezahlt";
+    value = el.value || "";
+  } else if (el.classList.contains("admin-erschienen")) {
+    field = "erschienen";
+    value = el.checked;
+  } else return;
+  try {
+    const params = new URLSearchParams({
+      action: "admin_update_booking",
+      admin_key: currentAdminKey,
+      booking_id: bookingId,
+      field,
+      value: String(value)
+    });
+    const res = await fetch(SCRIPT_BASE + "?" + params.toString());
+    const data = await res.json();
+    if (!data.ok) console.warn("Update fehlgeschlagen:", data.message);
+  } catch (err) {
+    console.warn("Update Fehler:", err);
+  }
 }
 
 function buildTimeOptionsHalfHour(startHour, endHour) {

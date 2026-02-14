@@ -150,6 +150,8 @@ function doGet(e) {
     case "admin_export_csv": return handleAdminExportCsv(e.parameter.admin_key);
     case "admin_slots": return handleAdminSlots(e.parameter.admin_key);
     case "admin_add_slot": return handleAdminAddSlot(e.parameter);
+    case "admin_update_booking": return handleAdminUpdateBooking(e.parameter);
+    case "admin_cancel_booking": return handleAdminCancelBooking(e.parameter);
     default: return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
   }
 }
@@ -385,7 +387,10 @@ function handleBook(payload) {
       participantCount,
       "CONFIRMED",
       cancelToken,
-      ""
+      "",
+      false,
+      "",
+      false
     ]);
     
     const participantsSheet = getSheet(SHEET_PARTICIPANTS);
@@ -507,12 +512,23 @@ function handleCancel(token) {
 // ADMIN
 // ══════════════════════════════════════════════════════════════════════════════
 
+function ensureBookingsColumns(sheet) {
+  if (!sheet || sheet.getLastRow() < 1) return;
+  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (header.length >= 12) return;
+  const labels = ["rng", "rng_bezahlt", "erschienen"];
+  for (let i = 0; i < labels.length; i++) {
+    sheet.getRange(1, 10 + i).setValue(labels[i] === "rng_bezahlt" ? "RNG Bezahlt" : (labels[i] === "rng" ? "RNG" : "Erschienen"));
+  }
+}
+
 function handleAdminBookings(adminKey) {
   if (!adminKey || adminKey !== getSetting("ADMIN_KEY")) {
     return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
   }
   
   const bookingsSheet = getSheet(SHEET_BOOKINGS);
+  ensureBookingsColumns(bookingsSheet);
   const participantsSheet = getSheet(SHEET_PARTICIPANTS);
   const workshopsSheet = getSheet(SHEET_WORKSHOPS);
   
@@ -543,6 +559,10 @@ function handleAdminBookings(adminKey) {
   const bookings = [];
   for (let i = 1; i < bookingsData.length; i++) {
     const row = bookingsData[i];
+    const rngVal = row[9];
+    const rng = rngVal === true || rngVal === "TRUE" || rngVal === "x" || rngVal === "X" || rngVal === 1;
+    const erschienenVal = row[11];
+    const erschienen = erschienenVal === true || erschienenVal === "TRUE" || erschienenVal === "x" || erschienenVal === "X" || erschienenVal === 1;
     bookings.push({
       booking_id: row[0],
       timestamp: row[1],
@@ -553,11 +573,111 @@ function handleAdminBookings(adminKey) {
       participants_count: row[5],
       status: row[6],
       cancelled_at: row[8],
-      participants: participantsByBooking[row[0]] || []
+      rng,
+      rng_bezahlt: row[10] ? (row[10] instanceof Date ? Utilities.formatDate(row[10], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(row[10]).split("T")[0]) : "",
+      erschienen
     });
   }
   
   return jsonResponse({ ok: true, bookings });
+}
+
+function handleAdminUpdateBooking(params) {
+  if (!params.admin_key || params.admin_key !== getSetting("ADMIN_KEY")) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  const bookingId = (params.booking_id || "").toString().trim();
+  const field = (params.field || "").toString().toLowerCase();
+  let value = params.value;
+  if (!bookingId || !field) {
+    return jsonResponse({ ok: false, message: "booking_id und field erforderlich" });
+  }
+  if (!["rng", "rng_bezahlt", "erschienen"].includes(field)) {
+    return jsonResponse({ ok: false, message: "Ungültiges field" });
+  }
+  const col = field === "rng" ? 10 : (field === "rng_bezahlt" ? 11 : 12);
+  const sheet = getSheet(SHEET_BOOKINGS);
+  ensureBookingsColumns(sheet);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === bookingId) {
+      if (field === "rng" || field === "erschienen") {
+        const checked = value === true || value === "true" || value === "1" || value === "x" || value === "X";
+        sheet.getRange(i + 1, col).setValue(checked);
+      } else {
+        sheet.getRange(i + 1, col).setValue(value || "");
+      }
+      return jsonResponse({ ok: true, message: "Aktualisiert" });
+    }
+  }
+  return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
+}
+
+function handleAdminCancelBooking(params) {
+  if (!params.admin_key || params.admin_key !== getSetting("ADMIN_KEY")) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  const bookingId = (params.booking_id || "").toString().trim();
+  if (!bookingId) return jsonResponse({ ok: false, message: "booking_id erforderlich" });
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+    const bookingsSheet = getSheet(SHEET_BOOKINGS);
+    const bookingsData = bookingsSheet.getDataRange().getValues();
+    let bookingRowIndex = -1;
+    let bookingData = null;
+
+    for (let i = 1; i < bookingsData.length; i++) {
+      if (String(bookingsData[i][0]) === bookingId) {
+        bookingRowIndex = i + 1;
+        bookingData = {
+          booking_id: bookingsData[i][0],
+          slot_id: bookingsData[i][2],
+          workshop_id: bookingsData[i][3],
+          contact_email: bookingsData[i][4],
+          participants_count: parseInt(bookingsData[i][5]) || 1,
+          status: bookingsData[i][6]
+        };
+        break;
+      }
+    }
+
+    if (!bookingData) return jsonResponse({ ok: false, message: "Buchung nicht gefunden" });
+    if (bookingData.status === "CANCELLED") {
+      return jsonResponse({ ok: true, already_cancelled: true, message: "Bereits storniert" });
+    }
+
+    const cancelledAt = new Date().toISOString();
+    bookingsSheet.getRange(bookingRowIndex, 7).setValue("CANCELLED");
+    bookingsSheet.getRange(bookingRowIndex, 9).setValue(cancelledAt);
+
+    const slotsSheet = getSheet(SHEET_SLOTS);
+    const slotsData = slotsSheet.getDataRange().getValues();
+    for (let i = 1; i < slotsData.length; i++) {
+      const row = slotsData[i];
+      if (String(row[0]) === String(bookingData.slot_id) && String(row[1]) === String(bookingData.workshop_id)) {
+        const currentBooked = parseInt(row[6]) || 0;
+        const newBooked = Math.max(0, currentBooked - bookingData.participants_count);
+        slotsSheet.getRange(i + 1, 7).setValue(newBooked);
+        if (row[7] === "FULL" && newBooked < (parseInt(row[5]) || MAX_PARTICIPANTS)) {
+          slotsSheet.getRange(i + 1, 8).setValue("OPEN");
+        }
+        break;
+      }
+    }
+
+    try {
+      sendCancellationEmail(bookingData);
+      sendAdminCancellationEmail(bookingData);
+    } catch (e) { console.warn("E-Mail bei Storno:", e.message); }
+
+    return jsonResponse({ ok: true, message: "Buchung storniert", slot_freed: true });
+  } catch (error) {
+    return jsonResponse({ ok: false, message: "Fehler: " + (error.message || "Unbekannt") });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function handleAdminExportCsv(adminKey) {
@@ -585,19 +705,22 @@ function handleAdminExportCsv(adminKey) {
     participantsByBooking[bid].push(participantsData[i]);
   }
   
-  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;TN-Nr;Vorname;Nachname;E-Mail;Telefon\n";
+  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;RNG;RNG Bezahlt;Erschienen;TN-Nr;Vorname;Nachname;E-Mail;Telefon\n";
   
   for (let i = 1; i < bookingsData.length; i++) {
     const b = bookingsData[i];
     const participants = participantsByBooking[b[0]] || [];
     const workshopTitle = workshopTitles[b[3]] || b[3];
+    const rng = b[9] === true || b[9] === "TRUE" ? "x" : "";
+    const rngBezahlt = b[10] ? (b[10] instanceof Date ? Utilities.formatDate(b[10], Session.getScriptTimeZone(), "dd.MM.yyyy") : String(b[10]).split("T")[0]) : "";
+    const erschienen = b[11] === true || b[11] === "TRUE" ? "x" : "";
     
     if (participants.length > 0) {
       participants.forEach((p, idx) => {
-        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], p[1], p[2], p[3], p[4] || "", p[5] || ""].join(";") + "\n";
+        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], rng, rngBezahlt, erschienen, p[1], p[2], p[3], p[4] || "", p[5] || ""].join(";") + "\n";
       });
     } else {
-      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], "", "", "", "", ""].join(";") + "\n";
+      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], rng, rngBezahlt, erschienen, "", "", "", "", ""].join(";") + "\n";
     }
   }
   
@@ -804,7 +927,7 @@ function initSheets() {
   let bo = ss.getSheetByName(SHEET_BOOKINGS);
   if (!bo) { bo = ss.insertSheet(SHEET_BOOKINGS); }
   if (bo.getLastRow() === 0) {
-    bo.appendRow(["booking_id", "timestamp", "slot_id", "workshop_id", "contact_email", "participants_count", "status", "cancel_token", "cancelled_at"]);
+    bo.appendRow(["booking_id", "timestamp", "slot_id", "workshop_id", "contact_email", "participants_count", "status", "cancel_token", "cancelled_at", "rng", "rng_bezahlt", "erschienen"]);
   }
   
   let pa = ss.getSheetByName(SHEET_PARTICIPANTS);
