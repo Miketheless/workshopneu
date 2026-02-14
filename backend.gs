@@ -580,7 +580,8 @@ function handleAdminBookings(adminKey) {
       cancelled_at: row[8],
       rng,
       rng_bezahlt: row[10] ? (row[10] instanceof Date ? Utilities.formatDate(row[10], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(row[10]).split("T")[0]) : "",
-      erschienen
+      erschienen,
+      participants: participantsByBooking[row[0]] || []
     });
   }
   
