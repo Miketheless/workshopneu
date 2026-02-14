@@ -152,6 +152,7 @@ function doGet(e) {
     case "admin_add_slot": return handleAdminAddSlot(e.parameter);
     case "admin_update_booking": return handleAdminUpdateBooking(e.parameter);
     case "admin_cancel_booking": return handleAdminCancelBooking(e.parameter);
+    case "admin_cancel_slot": return handleAdminCancelSlot(e.parameter);
     default: return jsonResponse({ ok: false, message: "Unbekannte Aktion" });
   }
 }
@@ -244,6 +245,7 @@ function handleGetWorkshopsWithSlots() {
       if (!slotsByWorkshop[wid]) continue;
       const dateId = extractSlotDateId(row[2]);
       if (!dateId) continue;
+      if (row[7] === "CANCELLED") continue; // Stornierte Termine nicht anzeigen
       const slotDate = new Date(dateId);
       if (slotDate < today) continue;
       slotsByWorkshop[wid].push({
@@ -293,12 +295,14 @@ function handleGetSlots(workshopId) {
     const dateId = extractSlotDateId(row[2]); // date
     if (!dateId) continue;
     
+    const status = row[7] || "OPEN";
+    if (status === "CANCELLED") continue; // Stornierte Termine nicht liefern
+    
     const slotDate = new Date(dateId);
     if (slotDate < today) continue; // Vergangene Slots nicht liefern
     
     const capacity = parseInt(row[5]) || MAX_PARTICIPANTS;
     const booked = parseInt(row[6]) || 0;
-    const status = row[7] || "OPEN";
     
     slots.push({
       slot_id: row[0],
@@ -366,6 +370,7 @@ function handleBook(payload) {
     }
     
     if (!slotData) return jsonResponse({ ok: false, message: "Termin nicht gefunden" });
+    if (slotData.status === "CANCELLED") return jsonResponse({ ok: false, message: "Termin wurde storniert" });
     if (slotData.status === "FULL") return jsonResponse({ ok: false, message: "Termin ausgebucht" });
     
     const free = slotData.capacity - slotData.booked;
@@ -589,6 +594,7 @@ function handleAdminUpdateBooking(params) {
   const bookingId = (params.booking_id || "").toString().trim();
   const field = (params.field || "").toString().toLowerCase();
   let value = params.value;
+  if (value !== undefined && value !== null) value = String(value).trim();
   if (!bookingId || !field) {
     return jsonResponse({ ok: false, message: "booking_id und field erforderlich" });
   }
@@ -602,7 +608,8 @@ function handleAdminUpdateBooking(params) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === bookingId) {
       if (field === "rng" || field === "erschienen") {
-        const checked = value === true || value === "true" || value === "1" || value === "x" || value === "X";
+        const strVal = String(value || "").toLowerCase();
+        const checked = value === true || strVal === "true" || strVal === "1" || strVal === "x" || strVal === "yes";
         sheet.getRange(i + 1, col).setValue(checked);
       } else {
         sheet.getRange(i + 1, col).setValue(value || "");
@@ -811,6 +818,35 @@ function handleAdminAddSlot(params) {
   slotsSheet.appendRow([slotId, workshopId, date, start, end, MAX_PARTICIPANTS, 0, "OPEN"]);
   
   return jsonResponse({ ok: true, message: "Termin angelegt", slot_id: slotId });
+}
+
+/**
+ * Admin: Termin (Slot) stornieren – Status auf CANCELLED setzen
+ * Stornierte Termine erscheinen nicht mehr in der öffentlichen Buchungsübersicht.
+ */
+function handleAdminCancelSlot(params) {
+  if (!params.admin_key || params.admin_key !== getSetting("ADMIN_KEY")) {
+    return jsonResponse({ ok: false, message: "Ungültiger Admin-Schlüssel" });
+  }
+  const slotId = (params.slot_id || "").toString().trim();
+  const workshopId = (params.workshop_id || "").toString().trim();
+  if (!slotId || !workshopId) {
+    return jsonResponse({ ok: false, message: "slot_id und workshop_id erforderlich" });
+  }
+  const slotsSheet = getSheet(SHEET_SLOTS);
+  if (!slotsSheet) return jsonResponse({ ok: false, message: "Slots-Sheet nicht gefunden" });
+  const sData = slotsSheet.getDataRange().getValues();
+  const statusCol = 8; // Spalte H = Index 7
+  for (let i = 1; i < sData.length; i++) {
+    const row = sData[i];
+    if (String(row[0]) === slotId && String(row[1]) === workshopId) {
+      slotsSheet.getRange(i + 1, statusCol).setValue("CANCELLED");
+      const cache = CacheService.getDocumentCache();
+      if (cache) cache.remove("workshops_with_slots");
+      return jsonResponse({ ok: true, message: "Termin storniert" });
+    }
+  }
+  return jsonResponse({ ok: false, message: "Termin nicht gefunden" });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

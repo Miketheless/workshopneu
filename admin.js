@@ -80,6 +80,17 @@ async function addSlot(adminKey, workshopId, date, start, end) {
   return res.json();
 }
 
+async function cancelSlot(adminKey, slotId, workshopId) {
+  const params = new URLSearchParams({
+    action: "admin_cancel_slot",
+    admin_key: adminKey,
+    slot_id: slotId,
+    workshop_id: workshopId
+  });
+  const res = await fetch(SCRIPT_BASE + "?" + params.toString());
+  return res.json();
+}
+
 async function handleLogin() {
   const key = $("admin-key").value.trim();
   if (!key) {
@@ -189,6 +200,8 @@ function renderBookings() {
           <th>Datum</th>
           <th>Slot</th>
           <th>Workshop</th>
+          <th>Vorname</th>
+          <th>Nachname</th>
           <th>E-Mail</th>
           <th>TN</th>
           <th>Status</th>
@@ -204,10 +217,13 @@ function renderBookings() {
   
   filtered.forEach(b => {
     const cancelled = b.status === "CANCELLED";
+    const p0 = (b.participants || [])[0];
+    const vorname = p0 ? (p0.first_name || "") : "";
+    const nachname = p0 ? (p0.last_name || "") : "";
     const participantsStr = (b.participants || [])
       .map(p => (p.first_name || "") + " " + (p.last_name || "") + " (" + (p.email || "") + (p.phone ? ", Tel: " + p.phone : "") + ")")
       .join("; ");
-    const bid = (b.booking_id || "").replace(/'/g, "&#39;");
+    const bid = (b.booking_id || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const rngChecked = b.rng ? " checked" : "";
     const erschienenChecked = b.erschienen ? " checked" : "";
     const rngBezahltVal = b.rng_bezahlt || "";
@@ -218,6 +234,8 @@ function renderBookings() {
         <td>${formatTimestamp(b.timestamp)}</td>
         <td>${formatSlotDisplay(b.slot_id, b.slot_date)}</td>
         <td>${b.workshop_title || b.workshop_id || "–"}</td>
+        <td>${vorname || "–"}</td>
+        <td>${nachname || "–"}</td>
         <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
         <td>${b.participants_count || 0}</td>
         <td><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "Storno" : "OK"}</span></td>
@@ -234,12 +252,10 @@ function renderBookings() {
   html += "<p style='font-size:0.75rem; color:#666; margin-top:0.5rem;'>Buchungen: " + filtered.length + "</p>";
   
   container.innerHTML = html;
-  container.querySelectorAll(".admin-rng, .admin-rng-bezahlt, .admin-erschienen").forEach(el => {
-    el.addEventListener("change", handleBookingFieldChange);
-  });
-  container.querySelectorAll(".admin-cancel-btn").forEach(btn => {
-    btn.addEventListener("click", handleAdminCancelClick);
-  });
+  container.onchange = handleBookingFieldChange;
+  container.onclick = (e) => {
+    if (e.target.classList.contains("admin-cancel-btn")) handleAdminCancelClick(e);
+  };
 }
 
 async function handleAdminCancelClick(e) {
@@ -273,18 +289,19 @@ async function handleAdminCancelClick(e) {
 
 async function handleBookingFieldChange(e) {
   const el = e.target;
-  const bookingId = el.dataset.bookingId;
+  if (!el.classList.contains("admin-rng") && !el.classList.contains("admin-rng-bezahlt") && !el.classList.contains("admin-erschienen")) return;
+  const bookingId = el.getAttribute("data-booking-id");
   if (!bookingId || !currentAdminKey) return;
   let field, value;
   if (el.classList.contains("admin-rng")) {
     field = "rng";
-    value = el.checked;
+    value = el.checked ? "true" : "false";
   } else if (el.classList.contains("admin-rng-bezahlt")) {
     field = "rng_bezahlt";
     value = el.value || "";
   } else if (el.classList.contains("admin-erschienen")) {
     field = "erschienen";
-    value = el.checked;
+    value = el.checked ? "true" : "false";
   } else return;
   try {
     const params = new URLSearchParams({
@@ -292,13 +309,26 @@ async function handleBookingFieldChange(e) {
       admin_key: currentAdminKey,
       booking_id: bookingId,
       field,
-      value: String(value)
+      value
     });
-    const res = await fetch(SCRIPT_BASE + "?" + params.toString());
-    const data = await res.json();
-    if (!data.ok) console.warn("Update fehlgeschlagen:", data.message);
+    const res = await fetch(SCRIPT_BASE + "?" + params.toString(), { redirect: "follow" });
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch (_) { data = { ok: false, message: "Ungültige Antwort" }; }
+    if (data.ok) {
+      const badge = document.createElement("span");
+      badge.textContent = " ✓";
+      badge.style.color = "green";
+      badge.style.fontSize = "0.75rem";
+      el.parentElement.appendChild(badge);
+      setTimeout(() => badge.remove(), 1500);
+    } else {
+      console.warn("Update fehlgeschlagen:", data.message);
+      if (el.type === "checkbox") el.checked = !el.checked;
+    }
   } catch (err) {
     console.warn("Update Fehler:", err);
+    if (el.type === "checkbox") el.checked = !el.checked;
   }
 }
 
@@ -400,6 +430,7 @@ function renderSlotsTable() {
           <th>Zeit</th>
           <th>Gebucht</th>
           <th>Status</th>
+          <th>Aktion</th>
         </tr>
       </thead>
       <tbody>
@@ -407,15 +438,18 @@ function renderSlotsTable() {
   
   filtered.forEach(s => {
     const past = isPast(s.date);
-    const statusClass = s.status === "FULL" ? "full" : "open";
+    const isCancelled = s.status === "CANCELLED";
+    const statusClass = isCancelled ? "cancelled" : (s.status === "FULL" ? "full" : "open");
+    const statusLabel = isCancelled ? "Storniert" : (s.status === "FULL" ? "Voll" : "Offen");
     
     html += `
-      <tr class="${past ? "row-past" : ""}">
+      <tr class="${past ? "row-past" : ""} ${isCancelled ? "row-cancelled" : ""}">
         <td>${s.workshop_title || s.workshop_id || "–"}</td>
         <td>${formatDate(s.date)}</td>
         <td>${formatTimeDisplay(s.start)}–${formatTimeDisplay(s.end)} Uhr</td>
         <td>${s.booked || 0} / ${s.capacity || 4}</td>
-        <td><span class="status-badge ${statusClass}">${s.status === "FULL" ? "Voll" : "Offen"}</span></td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>${!isCancelled && !past ? `<button type="button" class="admin-cancel-btn slot-cancel-btn" data-slot-id="${s.slot_id}" data-workshop-id="${s.workshop_id}">Stornieren</button>` : "–"}</td>
       </tr>
     `;
   });
@@ -424,6 +458,33 @@ function renderSlotsTable() {
   html += "<p style='font-size:0.75rem; color:#666; margin-top:0.5rem;'>Termine: " + filtered.length + "</p>";
   
   container.innerHTML = html;
+  container.onclick = (e) => {
+    if (e.target.classList.contains("slot-cancel-btn")) handleSlotCancelClick(e);
+  };
+}
+
+async function handleSlotCancelClick(e) {
+  const btn = e.target;
+  const slotId = btn.dataset.slotId;
+  const workshopId = btn.dataset.workshopId;
+  if (!slotId || !workshopId || !currentAdminKey) return;
+  if (!confirm("Termin wirklich stornieren? Er wird nicht mehr buchbar angezeigt.")) return;
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const data = await cancelSlot(currentAdminKey, slotId, workshopId);
+    if (data.ok) {
+      await handleRefresh();
+    } else {
+      alert("Storno fehlgeschlagen: " + (data.message || "Unbekannt"));
+      btn.disabled = false;
+      btn.textContent = "Stornieren";
+    }
+  } catch (err) {
+    alert("Fehler: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Stornieren";
+  }
 }
 
 async function handleAddSlot(e) {
