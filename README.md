@@ -209,7 +209,7 @@ Wenn du **N8N_WEBHOOK_URL** im Settings-Tab einträgst, ruft das Backend bei jed
 - `booking_id`, `contact_email`, `participants` (Array mit first_name, last_name, email, phone), `voucher_code` (Gutscheinnummer), `slot_id`, `workshop_id`, `workshop_title`, `slot_date`, `slot_start`, `slot_end`, `slot_date_formatted` (z.B. "Donnerstag, 19.03.2026"), `timestamp`
 
 **Stornierung** (`event: "cancellation"`):
-- `booking_id`, `contact_email`, `slot_id`, `workshop_id`, `workshop_title`, `slot_date`, `slot_start`, `slot_end`, `slot_date_formatted`, `timestamp`
+- `booking_id`, `contact_email`, `voucher_code`, `slot_id`, `workshop_id`, `workshop_title`, `slot_date`, `slot_start`, `slot_end`, `slot_date_formatted`, `timestamp`
 
 ---
 

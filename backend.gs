@@ -562,6 +562,7 @@ function handleCancel(token) {
     notifyN8nWebhook("cancellation", {
       booking_id: bookingData.booking_id,
       contact_email: bookingData.contact_email,
+      voucher_code: bookingData.voucher_code || "",
       slot_id: bookingData.slot_id,
       workshop_id: bookingData.workshop_id,
       workshop_title: getWorkshopTitle(bookingData.workshop_id),
@@ -719,7 +720,8 @@ function handleAdminCancelBooking(params) {
           workshop_id: bookingsData[i][3],
           contact_email: bookingsData[i][4],
           participants_count: parseInt(bookingsData[i][5]) || 1,
-          status: bookingsData[i][6]
+          status: bookingsData[i][6],
+          voucher_code: bookingsData[i][12] ? String(bookingsData[i][12]).trim() : ""
         };
         break;
       }
@@ -1060,6 +1062,40 @@ function initSheets() {
   }
   
   console.log("Sheets initialisiert.");
+}
+
+/**
+ * Setzt Participants, Bookings und Slots zurück – löscht alle Zeilen (Header bleibt).
+ * Vorsicht: Alle Buchungen, Teilnehmer und Termine werden unwiderruflich gelöscht!
+ * Im Apps Script auswählen → ▶ Ausführen
+ */
+function resetParticipantsBookingsSlots() {
+  const counts = { participants: 0, bookings: 0, slots: 0 };
+  
+  const pa = getSheet(SHEET_PARTICIPANTS);
+  if (pa && pa.getLastRow() > 1) {
+    counts.participants = pa.getLastRow() - 1;
+    pa.deleteRows(2, pa.getLastRow() - 1);
+    console.log("Participants: " + counts.participants + " Zeilen gelöscht.");
+  }
+  
+  const bo = getSheet(SHEET_BOOKINGS);
+  if (bo && bo.getLastRow() > 1) {
+    counts.bookings = bo.getLastRow() - 1;
+    bo.deleteRows(2, bo.getLastRow() - 1);
+    console.log("Bookings: " + counts.bookings + " Zeilen gelöscht.");
+  }
+  
+  const sl = getSheet(SHEET_SLOTS);
+  if (sl && sl.getLastRow() > 1) {
+    counts.slots = sl.getLastRow() - 1;
+    sl.deleteRows(2, sl.getLastRow() - 1);
+    console.log("Slots: " + counts.slots + " Zeilen gelöscht.");
+    const cache = CacheService.getDocumentCache();
+    if (cache) cache.remove("workshops_with_slots");
+  }
+  
+  console.log("Zurücksetzen abgeschlossen: " + counts.participants + " Participants, " + counts.bookings + " Bookings, " + counts.slots + " Slots gelöscht.");
 }
 
 /**
