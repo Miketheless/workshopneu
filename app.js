@@ -414,6 +414,7 @@ async function handleSubmit(e) {
 
     const contactEmail = email;
     const participants = [{ first_name: first, last_name: last, email, phone }];
+    const voucherCode = (formData.get("voucher_code") || "").trim();
 
     const agb = document.getElementById("agb_accepted")?.checked;
     const privacy = document.getElementById("privacy_accepted")?.checked;
@@ -428,6 +429,7 @@ async function handleSubmit(e) {
       contact_email: contactEmail,
       participants_count: 1,
       participants,
+      voucher_code: voucherCode || undefined,
       agb_accepted: true,
       privacy_accepted: true,
       fagg_consent: true

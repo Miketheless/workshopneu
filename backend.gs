@@ -58,6 +58,17 @@ function getSetting(key) {
   return null;
 }
 
+function getWorkshopTitle(workshopId) {
+  if (!workshopId) return "";
+  const sheet = getSheet(SHEET_WORKSHOPS);
+  if (!sheet || sheet.getLastRow() < 2) return "";
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(workshopId)) return data[i][1] || "";
+  }
+  return "";
+}
+
 function generateBookingId() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let id = "WS-";
@@ -78,6 +89,25 @@ function generateCancelToken() {
 
 function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Ruft n8n-Webhook auf (falls N8N_WEBHOOK_URL in Settings gesetzt).
+ * Fehler werden geloggt, blockieren aber nicht den Hauptablauf.
+ */
+function notifyN8nWebhook(event, payload) {
+  const url = getSetting("N8N_WEBHOOK_URL");
+  if (!url || typeof url !== "string" || !url.trim()) return;
+  try {
+    UrlFetchApp.fetch(url.trim(), {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify({ event, ...payload }),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    console.warn("n8n Webhook Fehler:", e.message);
+  }
 }
 
 function extractSlotDateId(value) {
@@ -383,6 +413,7 @@ function handleBook(payload) {
     const timestamp = new Date().toISOString();
     
     const bookingsSheet = getSheet(SHEET_BOOKINGS);
+    ensureBookingsColumns(bookingsSheet);
     bookingsSheet.appendRow([
       bookingId,
       timestamp,
@@ -395,7 +426,8 @@ function handleBook(payload) {
       "",
       false,
       "",
-      false
+      false,
+      (payload.voucher_code || "").toString().trim()
     ]);
     
     const participantsSheet = getSheet(SHEET_PARTICIPANTS);
@@ -424,6 +456,21 @@ function handleBook(payload) {
     } catch (emailError) {
       console.warn("E-Mail Fehler:", emailError.message);
     }
+    
+    notifyN8nWebhook("booking", {
+      booking_id: bookingId,
+      contact_email: payload.contact_email,
+      participants: payload.participants,
+      voucher_code: (payload.voucher_code || "").toString().trim(),
+      slot_id: payload.slot_id,
+      workshop_id: payload.workshop_id,
+      workshop_title: getWorkshopTitle(payload.workshop_id),
+      slot_date: slotData.date,
+      slot_start: slotData.start,
+      slot_end: slotData.end,
+      slot_date_formatted: formatDateForEmail(slotData.date),
+      timestamp: new Date().toISOString()
+    });
     
     return jsonResponse({
       ok: true,
@@ -485,10 +532,16 @@ function handleCancel(token) {
     
     const slotsSheet = getSheet(SHEET_SLOTS);
     const slotsData = slotsSheet.getDataRange().getValues();
+    let slotDate = "";
+    let slotStart = "";
+    let slotEnd = "";
     
     for (let i = 1; i < slotsData.length; i++) {
       const row = slotsData[i];
       if (String(row[0]) === String(bookingData.slot_id) && String(row[1]) === String(bookingData.workshop_id)) {
+        slotDate = extractSlotDateId(row[2]) || "";
+        slotStart = formatTimeForSlot(row[3]) || "";
+        slotEnd = formatTimeForSlot(row[4]) || "";
         const currentBooked = parseInt(row[6]) || 0;
         const newBooked = Math.max(0, currentBooked - bookingData.participants_count);
         slotsSheet.getRange(i + 1, 7).setValue(newBooked);
@@ -503,6 +556,19 @@ function handleCancel(token) {
       sendCancellationEmail(bookingData);
       sendAdminCancellationEmail(bookingData);
     } catch (e) { console.warn("E-Mail bei Storno:", e.message); }
+    
+    notifyN8nWebhook("cancellation", {
+      booking_id: bookingData.booking_id,
+      contact_email: bookingData.contact_email,
+      slot_id: bookingData.slot_id,
+      workshop_id: bookingData.workshop_id,
+      workshop_title: getWorkshopTitle(bookingData.workshop_id),
+      slot_date: slotDate,
+      slot_start: slotStart,
+      slot_end: slotEnd,
+      slot_date_formatted: slotDate ? formatDateForEmail(slotDate) : "",
+      timestamp: cancelledAt
+    });
     
     return jsonResponse({ ok: true, booking_id: bookingData.booking_id, message: "Buchung storniert" });
     
@@ -520,10 +586,15 @@ function handleCancel(token) {
 function ensureBookingsColumns(sheet) {
   if (!sheet || sheet.getLastRow() < 1) return;
   const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  if (header.length >= 12) return;
-  const labels = ["rng", "rng_bezahlt", "erschienen"];
+  if (header.length >= 12) {
+    if (header.length < 13) sheet.getRange(1, 13).setValue("Gutscheinnummer");
+    return;
+  }
+  const labels = ["rng", "rng_bezahlt", "erschienen", "Gutscheinnummer"];
   for (let i = 0; i < labels.length; i++) {
-    sheet.getRange(1, 10 + i).setValue(labels[i] === "rng_bezahlt" ? "RNG Bezahlt" : (labels[i] === "rng" ? "RNG" : "Erschienen"));
+    const col = 10 + i;
+    const val = labels[i] === "rng_bezahlt" ? "RNG Bezahlt" : (labels[i] === "rng" ? "RNG" : (labels[i] === "erschienen" ? "Erschienen" : labels[i]));
+    sheet.getRange(1, col).setValue(val);
   }
 }
 
@@ -581,6 +652,7 @@ function handleAdminBookings(adminKey) {
       rng,
       rng_bezahlt: row[10] ? (row[10] instanceof Date ? Utilities.formatDate(row[10], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(row[10]).split("T")[0]) : "",
       erschienen,
+      voucher_code: row[12] ? String(row[12]).trim() : "",
       participants: participantsByBooking[row[0]] || []
     });
   }
@@ -713,22 +785,24 @@ function handleAdminExportCsv(adminKey) {
     participantsByBooking[bid].push(participantsData[i]);
   }
   
-  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Anzahl;Status;RNG;RNG Bezahlt;Erschienen;TN-Nr;Vorname;Nachname;E-Mail;Telefon\n";
+  ensureBookingsColumns(bookingsSheet);
+  let csv = "Buchungs-ID;Buchungsdatum;Slot;Workshop;E-Mail;Gutscheinnummer;Anzahl;Status;RNG;RNG Bezahlt;Erschienen;TN-Nr;Vorname;Nachname;E-Mail;Telefon\n";
   
   for (let i = 1; i < bookingsData.length; i++) {
     const b = bookingsData[i];
     const participants = participantsByBooking[b[0]] || [];
     const workshopTitle = workshopTitles[b[3]] || b[3];
+    const voucherCode = b[12] ? String(b[12]).trim() : "";
     const rng = b[9] === true || b[9] === "TRUE" ? "x" : "";
     const rngBezahlt = b[10] ? (b[10] instanceof Date ? Utilities.formatDate(b[10], Session.getScriptTimeZone(), "dd.MM.yyyy") : String(b[10]).split("T")[0]) : "";
     const erschienen = b[11] === true || b[11] === "TRUE" ? "x" : "";
     
     if (participants.length > 0) {
       participants.forEach((p, idx) => {
-        csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], rng, rngBezahlt, erschienen, p[1], p[2], p[3], p[4] || "", p[5] || ""].join(";") + "\n";
+        csv += [b[0], b[1], b[2], workshopTitle, b[4], voucherCode, b[5], b[6], rng, rngBezahlt, erschienen, p[1], p[2], p[3], p[4] || "", p[5] || ""].join(";") + "\n";
       });
     } else {
-      csv += [b[0], b[1], b[2], workshopTitle, b[4], b[5], b[6], rng, rngBezahlt, erschienen, "", "", "", "", ""].join(";") + "\n";
+      csv += [b[0], b[1], b[2], workshopTitle, b[4], voucherCode, b[5], b[6], rng, rngBezahlt, erschienen, "", "", "", "", ""].join(";") + "\n";
     }
   }
   
@@ -964,7 +1038,7 @@ function initSheets() {
   let bo = ss.getSheetByName(SHEET_BOOKINGS);
   if (!bo) { bo = ss.insertSheet(SHEET_BOOKINGS); }
   if (bo.getLastRow() === 0) {
-    bo.appendRow(["booking_id", "timestamp", "slot_id", "workshop_id", "contact_email", "participants_count", "status", "cancel_token", "cancelled_at", "rng", "rng_bezahlt", "erschienen"]);
+    bo.appendRow(["booking_id", "timestamp", "slot_id", "workshop_id", "contact_email", "participants_count", "status", "cancel_token", "cancelled_at", "rng", "rng_bezahlt", "erschienen", "Gutscheinnummer"]);
   }
   
   let pa = ss.getSheetByName(SHEET_PARTICIPANTS);
@@ -984,6 +1058,21 @@ function initSheets() {
   }
   
   console.log("Sheets initialisiert.");
+}
+
+/**
+ * Fügt N8N_WEBHOOK_URL ins Settings-Sheet ein (falls noch nicht vorhanden).
+ * Einmal ausführen: Funktion auswählen → ▶ Ausführen
+ */
+function addN8nWebhookSetting() {
+  if (getSetting("N8N_WEBHOOK_URL")) {
+    console.log("N8N_WEBHOOK_URL ist bereits gesetzt.");
+    return;
+  }
+  const se = getSheet(SHEET_SETTINGS);
+  if (!se) { console.log("Settings-Sheet nicht gefunden."); return; }
+  se.appendRow(["N8N_WEBHOOK_URL", "https://n8n.srv1066806.hstgr.cloud/webhook/Workshop"]);
+  console.log("N8N_WEBHOOK_URL wurde hinzugefügt.");
 }
 
 /**

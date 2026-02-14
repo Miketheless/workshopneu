@@ -203,6 +203,7 @@ function renderBookings() {
           <th>Vorname</th>
           <th>Nachname</th>
           <th>E-Mail</th>
+          <th>Gutschein</th>
           <th>TN</th>
           <th>Status</th>
           <th>RNG</th>
@@ -237,6 +238,7 @@ function renderBookings() {
         <td>${vorname || "–"}</td>
         <td>${nachname || "–"}</td>
         <td><a href="mailto:${b.contact_email}">${b.contact_email || "–"}</a></td>
+        <td>${b.voucher_code || "–"}</td>
         <td>${b.participants_count || 0}</td>
         <td><span class="status-badge ${cancelled ? "cancelled" : "confirmed"}">${cancelled ? "Storno" : "OK"}</span></td>
         <td><input type="checkbox" class="admin-rng" data-booking-id="${bid}"${rngChecked}></td>

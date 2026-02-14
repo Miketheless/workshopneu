@@ -74,6 +74,7 @@ Statisches Frontend (HTML/CSS/Vanilla JS) für GitHub Pages, Backend: Google App
    | MAIL_FROM_NAME | Absendername für E-Mails (z.B. `gemma golfn`) |
    | ADMIN_KEY | Ein geheimer Schlüssel für den Admin-Login (z.B. `MeinGeheimerSchluessel2026`) – merk dir diesen! |
    | PUBLIC_BASE_URL | Noch leer lassen – tragen wir in Schritt 7 ein |
+   | N8N_WEBHOOK_URL | (Optional) n8n-Webhook-URL für Automatisierungen – z.B. `https://n8n.srv1066806.hstgr.cloud/webhook/Workshop` |
 
 4. Speichere das Sheet (Strg+S)
 
@@ -197,6 +198,18 @@ Alternativ kannst du im Tab **Slots** neue Zeilen einfügen:
 ## Flyer-Seeder
 
 Die Funktion `seedSlotsFromFlyer_March()` legt Termine für **März 2026** an (07., 14., 21., 28.03.) – für jede Workshop-Kategorie und jeden Tag mehrere Zeitslots. Einmal im Apps Script ausführen, danach weitere Termine im Admin oder im Sheet ergänzen.
+
+---
+
+## n8n-Webhook
+
+Wenn du **N8N_WEBHOOK_URL** im Settings-Tab einträgst, ruft das Backend bei jeder **Buchung** und jeder **Stornierung** deinen n8n-Webhook auf (POST, JSON).
+
+**Buchung** (`event: "booking"`):
+- `booking_id`, `contact_email`, `participants` (Array mit first_name, last_name, email, phone), `voucher_code` (Gutscheinnummer), `slot_id`, `workshop_id`, `workshop_title`, `slot_date`, `slot_start`, `slot_end`, `slot_date_formatted` (z.B. "Donnerstag, 19.03.2026"), `timestamp`
+
+**Stornierung** (`event: "cancellation"`):
+- `booking_id`, `contact_email`, `slot_id`, `workshop_id`, `workshop_title`, `slot_date`, `slot_start`, `slot_end`, `slot_date_formatted`, `timestamp`
 
 ---
 
